@@ -35,10 +35,12 @@ void Engine::RunInitialedEngine() {
       auto render_task_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> render_span =
           render_task_end - render_task_start;
-      std::cout << "gpu time:" << render_span.count() << std::endl;
-      // std::cout << "r: " << buf_idx << std::endl;
-      //  std::cout << "render thread time:" << render_span.count()
-      //            << " f: " << frame << std::endl;
+
+      CalculateFPS(render_span.count());
+      // std::cout << "gpu time:" << render_span.count() << std::endl;
+      //  std::cout << "r: " << buf_idx << std::endl;
+      //   std::cout << "render thread time:" << render_span.count()
+      //             << " f: " << frame << std::endl;
       buf_idx = (buf_idx + 1) % 2;
       ++frame;
       race_frame_idx.Signal();
@@ -61,6 +63,7 @@ void Engine::RunInitialedEngine() {
       auto logic_task_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> task_span =
           logic_task_end - logic_task_start;
+
       // std::cout << "cpu time:" << task_span.count() << std::endl;
       //  std::cout << "cpu time:" << task_span.count() << " f: " << frame
       //            << std::endl;
@@ -110,6 +113,22 @@ void Engine::TickLogic(double delta_time) {
 
 void Engine::DispatchShutDownMessage() {
   // m_rd_sys->should_shutdown = true;
+}
+
+void Engine::CalculateFPS(double delta_time) {
+  // average sample, delta_time is millionsec
+  ++m_frame_count;
+
+  if (m_frame_count == 1) {
+    m_average_duration = delta_time;
+  } else {
+    m_average_duration =
+        m_average_duration * (1 - k_smooth_alpha) + delta_time * k_smooth_alpha;
+  }
+
+  m_fps = static_cast<int>(1000.f / m_average_duration);
+
+  // std::cout << "FPS:" << m_fps << std::endl;
 }
 
 }  // namespace ShaderStory

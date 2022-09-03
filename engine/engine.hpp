@@ -37,8 +37,15 @@ class Engine {
 
   void DispatchShutDownMessage();
 
+  void CalculateFPS(double delta_time);
+
  private:
   bool should_shutdown{false};
+
+  const double k_smooth_alpha{1.0 / 100.0};
+  u_int64_t m_frame_count{0};
+  double m_average_duration{0.0};
+  int m_fps{0};
 
   // std::shared_ptr<InputSystem> m_input_sys;
 
