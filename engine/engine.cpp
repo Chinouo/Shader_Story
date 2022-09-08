@@ -3,7 +3,10 @@
 #include <chrono>
 #include <iostream>
 
+#include "engine/runtime/framework/world_manager.hpp"
 #include "engine/runtime/global/global.hpp"
+#include "engine/runtime/render/render_system.hpp"
+#include "engine/runtime/window/window_system.hpp"
 
 namespace ShaderStory {
 
@@ -12,8 +15,8 @@ void Engine::InitializeEngine() { g_runtime_global_context.StartSystems(); }
 void Engine::RunInitialedEngine() {
   // 是否有代渲染的任务
   Semaphore render_data_ready(0);
-  // logic 最多领先几帧
-  Semaphore race_frame_idx(1);
+  // logic 最多领先 n - 1 帧, 2类似 双重缓重， 3 类似 三重缓冲
+  Semaphore race_frame_idx(k_swap_size);
 
   // render thread task.
   std::shared_ptr<RenderSystem> m_rd_sys =
@@ -31,17 +34,19 @@ void Engine::RunInitialedEngine() {
       // std::cout << "tick render..\n";
 
       auto render_task_start = std::chrono::steady_clock::now();
-      m_rd_sys->TickRender(0.f);
+      TickRender(0.f);
+      SwapRenderData(buf_idx);
       auto render_task_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> render_span =
           render_task_end - render_task_start;
-
+      // std::this_thread::sleep_for(std::chrono::seconds(5));
       CalculateFPS(render_span.count());
       // std::cout << "gpu time:" << render_span.count() << std::endl;
       //  std::cout << "r: " << buf_idx << std::endl;
       //   std::cout << "render thread time:" << render_span.count()
       //             << " f: " << frame << std::endl;
-      buf_idx = (buf_idx + 1) % 2;
+
+      buf_idx = (buf_idx + 1) % k_swap_size;
       ++frame;
       race_frame_idx.Signal();
     }
@@ -60,6 +65,8 @@ void Engine::RunInitialedEngine() {
       // std::cout << "logic tick.\n";
       auto logic_task_start = std::chrono::steady_clock::now();
       TickLogic(0.f);
+      SwapLogicData(buf_idx);
+      SwapData();
       auto logic_task_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> task_span =
           logic_task_end - logic_task_start;
@@ -68,7 +75,7 @@ void Engine::RunInitialedEngine() {
       //  std::cout << "cpu time:" << task_span.count() << " f: " << frame
       //            << std::endl;
       //  std::cout << "l: " << buf_idx << std::endl;
-      buf_idx = (buf_idx + 1) % 2;
+      buf_idx = (buf_idx + 1) % k_swap_size;
       ++frame;
       render_data_ready.Signal();
     }
@@ -95,20 +102,41 @@ void Engine::RunInitialedEngine() {
 }
 
 void Engine::DebugSingleThread() {
-  std::shared_ptr<WindowSystem> m_wd_sys =
-      g_runtime_global_context.m_window_sys;
-  while (!m_wd_sys->ShouldCloseWindow()) {
-    glfwWaitEvents();
-    TickLogic(1.f);
-    g_runtime_global_context.m_render_sys->TickRender(1.f);
-  }
+  ASSERT(false);
+  // std::shared_ptr<WindowSystem> m_wd_sys =
+  //     g_runtime_global_context.m_window_sys;
+  // while (!m_wd_sys->ShouldCloseWindow()) {
+  //   glfwWaitEvents();
+  //   TickLogic(1.f);
+  //   g_runtime_global_context.m_render_sys->TickRender(1.f);
+  // }
 }
 
 void Engine::ShutDowmEngine() { g_runtime_global_context.ShutDownSystems(); }
 
+void Engine::TickRender(double delta_time) {
+  g_runtime_global_context.m_render_sys->TickRender(delta_time);
+}
+
 void Engine::TickLogic(double delta_time) {
-  // int val = arc4random() % 1000;
-  // std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+  g_runtime_global_context.m_world_manager->Tick(delta_time);
+  //  g_runtime_global_context.m_input_sys->Tick();
+  //   int val = arc4random() % 1000;
+  //   std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+}
+
+void Engine::SwapLogicData(int available_slot) {
+  // std::cout << "logic write into:" << available_slot << std::endl;
+  SwapData& cur_swap_data =
+      g_runtime_global_context.m_swap_context->GetSwapData(available_slot);
+  g_runtime_global_context.m_world_manager->LoadSwapData(cur_swap_data);
+}
+
+void Engine::SwapRenderData(int available_slot) {
+  // std::cout << "render read from:" << available_slot << std::endl;
+  const SwapData& cur_swap_data =
+      g_runtime_global_context.m_swap_context->GetSwapData(available_slot);
+  g_runtime_global_context.m_render_sys->ConsumeSwapdata(cur_swap_data);
 }
 
 void Engine::DispatchShutDownMessage() {

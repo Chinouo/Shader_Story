@@ -8,8 +8,7 @@
 #include "engine/common/macros.h"
 #include "engine/core/semaphore.hpp"
 #include "engine/runtime/io/input_system.hpp"
-#include "engine/runtime/render/render_system.hpp"
-#include "engine/runtime/window/window_system.hpp"
+
 namespace ShaderStory {
 
 struct LogicRenderSyncObject {
@@ -34,6 +33,10 @@ class Engine {
 
  private:
   void TickLogic(double delta_time);
+  void TickRender(double delta_time);
+
+  void SwapLogicData(int available_slot);
+  void SwapRenderData(int available_slot);
 
   void DispatchShutDownMessage();
 
@@ -48,6 +51,8 @@ class Engine {
   int m_fps{0};
 
   // std::shared_ptr<InputSystem> m_input_sys;
+
+  const int k_swap_size = 2;
 
   DISALLOW_COPY_ASSIGN_AND_MOVE(Engine);
 };
