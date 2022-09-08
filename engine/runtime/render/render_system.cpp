@@ -2,36 +2,44 @@
 #include "engine/runtime/render/render_system.hpp"
 
 #include <chrono>
+#include <iostream>
 #include <memory>
 
 #include "engine/runtime/global/global.hpp"
+#include "engine/runtime/io/assets_manager.hpp"
 #include "engine/runtime/window/window_system.hpp"
 
 namespace ShaderStory {
 
 RenderSystem::RenderSystem() {}
 
-RenderSystem::~RenderSystem() {}
+RenderSystem::~RenderSystem() {
+  Destory();
+  std::cout << "RenderSys destory.\n";
+}
 
 void RenderSystem::Initialize() {
   m_rhi = std::make_shared<RHI::VKRHI>();
+  m_resources = std::make_shared<RenderResource>();
   m_pipeline = std::make_unique<RenderPipeline>();
 
   m_rhi->Initialize(g_runtime_global_context.m_window_sys->GetWindow());
-
-  m_pipeline->SetRHI(m_rhi);
-  m_pipeline->Initilaize();
+  m_resources->Initialize(m_rhi);
+  m_pipeline->Initilaize(m_rhi, m_resources);
 }
 
-void RenderSystem::ReloadPipeline() { m_pipeline->RecreatePipeline(); }
+void RenderSystem::ReloadPipeline() {
+  m_rhi->WaitDeviceIdle();
+  m_pipeline->RecreatePipeline();
+}
 
 void RenderSystem::Destory() {
-  // m_pipeline->Dispose();
-  // m_rhi->Destory();
-  // m_pipeline.reset();
+  m_rhi->WaitDeviceIdle();
 
-  // auto sz = m_rhi.use_count();
-  // ASSERT(m_rhi.unique());
+  m_pipeline.reset();
+  m_resources->Dispose();
+
+  ASSERT(m_resources.unique());
 }
 
 void RenderSystem::AddPostFrameCallback(std::function<void()>&& closure) {
@@ -62,6 +70,10 @@ void RenderSystem::TickRender(double delta_time) {
     callback();
   }
   m_post_frame_callbacks.clear();
+}
+
+void RenderSystem::ConsumeSwapdata(const SwapData& swap_data) {
+  m_resources->UpdatePerFrameData(swap_data);
 }
 
 }  // namespace ShaderStory

@@ -9,6 +9,9 @@ namespace ShaderStory {
 
 class RenderSystem;
 class WindowSystem;
+class InputSystem;
+class WorldManager;
+class RenderSwapData;
 
 class RuntimeGlobalContext final {
  public:
@@ -21,6 +24,10 @@ class RuntimeGlobalContext final {
  public:
   std::shared_ptr<RenderSystem> m_render_sys;
   std::shared_ptr<WindowSystem> m_window_sys;
+  std::shared_ptr<InputSystem> m_input_sys;
+  std::shared_ptr<WorldManager> m_world_manager;
+
+  std::unique_ptr<RenderSwapData> m_swap_context;
 
  private:
   DISALLOW_COPY_ASSIGN_AND_MOVE(RuntimeGlobalContext);

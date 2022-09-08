@@ -2,45 +2,55 @@
 
 #include <iostream>
 
+#include "engine/runtime/render/render_base.hpp"
+
 namespace ShaderStory {
 
 RenderPipeline::RenderPipeline() {}
 
 RenderPipeline::~RenderPipeline() {
-  Dispose();
   std::cout << "Call `RenderPipeline Destory.`" << std::endl;
 }
 
-void RenderPipeline::SetRHI(std::shared_ptr<RHI::VKRHI> rhi) { m_rhi = rhi; }
+void RenderPipeline::Initilaize(
+    std::shared_ptr<RHI::VKRHI> rhi,
+    std::shared_ptr<RenderResource> render_resource) {
+  m_rhi = rhi;
+  m_resource = render_resource;
 
-void RenderPipeline::Initilaize() {
-  test_pass = std::make_unique<TestPass>();
-  ui_pass = std::make_unique<UIPass>();
-
-  test_pass->PreInitialize(m_rhi);
-  test_pass->Initialize();
-
-  ui_pass->PreInitialize(m_rhi);
-  ui_pass->SetVkPass(test_pass->GetVkRenderPassForUI());
-  ui_pass->Initialize();
-}
-
-void RenderPipeline::Dispose() {
-  m_rhi->WaitDeviceIdle();
-  test_pass->Dispose();
-  test_pass.reset();
-
-  ui_pass->Dispose();
-  ui_pass.reset();
+  SetupPasses();
 }
 
 void RenderPipeline::RecordCommands() {
-  test_pass->RunPass();
+  // test_pass->RunPass();
+  mesh_pass->RunPass();
   ui_pass->RunPass();
 }
 
 void RenderPipeline::RecreatePipeline() {
-  Dispose();
-  Initilaize();
+  DestoryPasses();
+  SetupPasses();
+}
+
+void RenderPipeline::DestoryPasses() {
+  test_pass.reset();
+  ui_pass.reset();
+  mesh_pass.reset();
+}
+
+void RenderPipeline::SetupPasses() {
+  test_pass = std::make_unique<TestPass>();
+  ui_pass = std::make_unique<UIPass>();
+  mesh_pass = std::make_unique<MeshPass>();
+
+  mesh_pass->PreInitialize({m_rhi, m_resource});
+  mesh_pass->Initialize();
+
+  test_pass->PreInitialize({m_rhi, m_resource});
+  test_pass->Initialize();
+
+  ui_pass->PreInitialize({m_rhi, m_resource});
+  ui_pass->SetVkPass(mesh_pass->GetVkRenderPassForUI());
+  ui_pass->Initialize();
 }
 }  // namespace ShaderStory
