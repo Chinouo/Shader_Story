@@ -2,6 +2,7 @@
 #define MACROS_H
 
 #include <cassert>
+
 #define ASSERT(EXPR) assert(EXPR);
 
 // code comes from flutter engine.
