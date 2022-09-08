@@ -33,21 +33,16 @@ void RenderPipeline::RecreatePipeline() {
 }
 
 void RenderPipeline::DestoryPasses() {
-  test_pass.reset();
   ui_pass.reset();
   mesh_pass.reset();
 }
 
 void RenderPipeline::SetupPasses() {
-  test_pass = std::make_unique<TestPass>();
   ui_pass = std::make_unique<UIPass>();
   mesh_pass = std::make_unique<MeshPass>();
 
   mesh_pass->PreInitialize({m_rhi, m_resource});
   mesh_pass->Initialize();
-
-  test_pass->PreInitialize({m_rhi, m_resource});
-  test_pass->Initialize();
 
   ui_pass->PreInitialize({m_rhi, m_resource});
   ui_pass->SetVkPass(mesh_pass->GetVkRenderPassForUI());
