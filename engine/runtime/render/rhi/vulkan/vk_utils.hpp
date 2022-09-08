@@ -3,9 +3,10 @@
 
 #include <vector>
 
-#include "engine/runtime/render/vk_macros.h"
+#include "engine/runtime/render/rhi/vulkan/vk_rhi.hpp"
 #include "third_party/shaderc/shaderc.hpp"
 #include "third_party/vma/vk_mem_alloc.h"
+
 namespace ShaderStory {
 class VkUtil {
  public:
@@ -27,14 +28,15 @@ class VkUtil {
                            VkMemoryPropertyFlags properties, VkBuffer& buffer,
                            VkDeviceMemory& buffer_memory);
 
-  static void CreateImage(VkPhysicalDevice physical_device, VkDevice device,
-                          uint32_t image_width, uint32_t image_height,
-                          VkFormat format, VkImageTiling image_tiling,
-                          VkImageUsageFlags image_usage_flags,
-                          VkMemoryPropertyFlags memory_property_flags,
-                          VkImage& image, VkDeviceMemory& memory,
-                          VkImageCreateFlags image_create_flags,
-                          uint32_t array_layers, uint32_t miplevels);
+  //   static void CreateImage(VkPhysicalDevice physical_device, VkDevice
+  //   device,
+  //                           uint32_t image_width, uint32_t image_height,
+  //                           VkFormat format, VkImageTiling image_tiling,
+  //                           VkImageUsageFlags image_usage_flags,
+  //                           VkMemoryPropertyFlags memory_property_flags,
+  //                           VkImage& image, VkDeviceMemory& memory,
+  //                           VkImageCreateFlags image_create_flags,
+  //                           uint32_t array_layers, uint32_t miplevels);
 
   static VkImageView CreateImageView(VkDevice device, VkImage& image,
                                      VkFormat format,
@@ -42,9 +44,9 @@ class VkUtil {
                                      VkImageViewType view_type,
                                      uint32_t layout_count, uint32_t miplevels);
 
-  static void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer,
-                         VkDeviceSize srcOffset, VkDeviceSize dstOffset,
-                         VkDeviceSize size);
+  static void TransitionImageLayout(VkImage image, VkFormat format,
+                                    VkImageLayout old_layout,
+                                    VkImageLayout new_layout);
 };
 
 }  // namespace ShaderStory

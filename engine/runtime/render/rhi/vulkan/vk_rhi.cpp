@@ -76,6 +76,8 @@ void VKRHI::Initialize(GLFWwindow *wd) {
 }
 
 void VKRHI::Destory() {
+  vmaDestroyAllocator(m_vma_allocator);
+
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
     if (m_command_pools[i])
       vkDestroyCommandPool(m_device, m_command_pools[i], nullptr);
@@ -609,6 +611,81 @@ void VKRHI::SubmitRenderingTask() {
 }
 
 void VKRHI::WaitDeviceIdle() { vkDeviceWaitIdle(m_device); }
+
+void VKRHI::CopyBuffer(VkBuffer src, VkDeviceSize src_offset, VkBuffer dst,
+                       VkDeviceSize dst_offset, VkDeviceSize size) {
+  auto cmd_buf = BeginSingleTimeCommands();
+  VkBufferCopy copy_region;
+  copy_region.srcOffset = src_offset;
+  copy_region.dstOffset = dst_offset;
+  copy_region.size = size;
+  vkCmdCopyBuffer(cmd_buf, src, dst, 1, &copy_region);
+  EndSingleTimeCommands(cmd_buf);
+}
+
+void VKRHI::TransitImageLayout(VkImage image, VkImageLayout old_layout,
+                               VkImageLayout new_layout, uint32_t layer_count,
+                               uint32_t miplevels,
+                               VkImageAspectFlags aspect_mask_bits) {
+  VkCommandBuffer command_buffer = BeginSingleTimeCommands();
+
+  VkImageMemoryBarrier barrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+  barrier.oldLayout = old_layout;
+  barrier.newLayout = new_layout;
+  barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+  barrier.image = image;
+  barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  barrier.subresourceRange.baseMipLevel = 0;
+  barrier.subresourceRange.levelCount = 1;
+  barrier.subresourceRange.baseArrayLayer = 0;
+  barrier.subresourceRange.layerCount = layer_count;
+
+  VkPipelineStageFlags sourceStage;
+  VkPipelineStageFlags destinationStage;
+
+  if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
+      new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+    barrier.srcAccessMask = 0;
+    barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+    sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+  } else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+             new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+    barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+    sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  } else {
+    throw std::invalid_argument("unsupported layout transition!");
+  }
+
+  vkCmdPipelineBarrier(command_buffer, sourceStage, destinationStage, 0, 0,
+                       nullptr, 0, nullptr, 1, &barrier);
+
+  EndSingleTimeCommands(command_buffer);
+}
+
+VkFormat VKRHI::FindSupportFormat(const std::vector<VkFormat> &candidates,
+                                  VkImageTiling tiling,
+                                  VkFormatFeatureFlags features) {
+  for (VkFormat format : candidates) {
+    VkFormatProperties props;
+    vkGetPhysicalDeviceFormatProperties(m_physical_device, format, &props);
+
+    if (tiling == VK_IMAGE_TILING_LINEAR &&
+        (props.linearTilingFeatures & features) == features) {
+      return format;
+    } else if (tiling == VK_IMAGE_TILING_OPTIMAL &&
+               (props.optimalTilingFeatures & features) == features) {
+      return format;
+    }
+  }
+
+  throw std::runtime_error("findSupportedFormat failed");
+}
 
 u_int32_t VKRHI::GetCurrentFrameIndex() const { return m_current_frame_index; };
 

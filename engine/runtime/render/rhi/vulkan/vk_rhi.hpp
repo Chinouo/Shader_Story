@@ -12,7 +12,14 @@
 #include "engine/common/macros.h"
 #include "third_party/vma/vk_mem_alloc.h"
 
+// VK_SUCCESS IS 0.
+#define VK_CHECK(RESULT, MESG)      \
+  if (RESULT != VK_SUCCESS) {       \
+    throw std::runtime_error(MESG); \
+  }
+
 namespace ShaderStory {
+
 namespace RHI {
 
 #define MAX_FRAMES_IN_FLIGHT 3
@@ -43,7 +50,6 @@ class VKRHI final {
   void Destory();
 
   u_int32_t GetCurrentFrameIndex() const;
-
   VkCommandBuffer GetCurrentCommandBuffer() const;
 
  private:
@@ -92,6 +98,18 @@ class VKRHI final {
   void ResetCommandPool();
   void WarmUpBeforePass();
   void SubmitRenderingTask();
+
+  VkFormat FindSupportFormat(const std::vector<VkFormat>& candidates,
+                             VkImageTiling tiling,
+                             VkFormatFeatureFlags features);
+
+  void CopyBuffer(VkBuffer src, VkDeviceSize src_offset, VkBuffer dst,
+                  VkDeviceSize dst_offset, VkDeviceSize size);
+
+  void TransitImageLayout(VkImage image, VkImageLayout old_layout,
+                          VkImageLayout new_layout, uint32_t layer_count,
+                          uint32_t miplevels,
+                          VkImageAspectFlags aspect_mask_bits);
 
  public:
   // do not modify member out of this class

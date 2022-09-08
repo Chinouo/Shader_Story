@@ -55,35 +55,6 @@ uint32_t VkUtil::FindMemoryType(
   throw std::runtime_error("Failed to find memory type.");
 }
 
-void VkUtil::CreateBuffer(VkPhysicalDevice physical_device, VkDevice device,
-                          VkDeviceSize size, VkBufferUsageFlags usage,
-                          VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                          VkDeviceMemory& buffer_memory) {}
-
-void VkUtil::CreateImage(VkPhysicalDevice physical_device, VkDevice device,
-                         uint32_t image_width, uint32_t image_height,
-                         VkFormat format, VkImageTiling image_tiling,
-                         VkImageUsageFlags image_usage_flags,
-                         VkMemoryPropertyFlags memory_property_flags,
-                         VkImage& image, VkDeviceMemory& memory,
-                         VkImageCreateFlags image_create_flags,
-                         uint32_t array_layers, uint32_t miplevels) {
-  VkImageCreateInfo info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-  info.flags = image_create_flags;
-  info.imageType = VK_IMAGE_TYPE_2D;
-  info.extent.width = image_width;
-  info.extent.height = image_height;
-  info.extent.depth = 1;
-  info.mipLevels = miplevels;
-  info.arrayLayers = array_layers;
-  info.format = format;
-  info.tiling = image_tiling;
-  info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  info.usage = image_usage_flags;
-  info.samples = VK_SAMPLE_COUNT_1_BIT;
-  info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-}
-
 VkImageView VkUtil::CreateImageView(VkDevice device, VkImage& image,
                                     VkFormat format,
                                     VkImageAspectFlags image_aspect_flags,
@@ -105,5 +76,9 @@ VkImageView VkUtil::CreateImageView(VkDevice device, VkImage& image,
            "Failed to create imageview.");
   return image_view;
 }
+
+void VkUtil::TransitionImageLayout(VkImage image, VkFormat format,
+                                   VkImageLayout old_layout,
+                                   VkImageLayout new_layout) {}
 
 }  // namespace ShaderStory
