@@ -1,5 +1,7 @@
 #include "engine/runtime/render/pass/ui_pass.hpp"
 
+#include <iostream>
+
 #include "engine/runtime/global/global.hpp"
 #include "engine/runtime/render/render_system.hpp"
 #include "engine/runtime/render/rhi/vulkan/vk_rhi.hpp"
@@ -8,6 +10,15 @@
 #include "third_party/imgui/imgui.h"
 
 namespace ShaderStory {
+
+UIPass::UIPass() { std::cout << "UIPass created.\n"; }
+
+UIPass::~UIPass() {
+  std::cout << "UIPass destory.\n";
+  ImGui_ImplVulkan_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
+}
 
 void UIPass::Initialize() {
   InitializeImGUIBackend();
@@ -37,12 +48,6 @@ void UIPass::RunPass() {
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),
                                   m_rhi->GetCurrentCommandBuffer());
   vkCmdEndRenderPass(m_rhi->GetCurrentCommandBuffer());
-}
-
-void UIPass::Dispose() {
-  ImGui_ImplVulkan_Shutdown();
-  ImGui_ImplGlfw_Shutdown();
-  ImGui::DestroyContext();
 }
 
 void UIPass::SetVkPass(VkRenderPass pass) { m_pass = pass; }

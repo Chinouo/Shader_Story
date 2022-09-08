@@ -2,14 +2,14 @@
 #define UI_PASS
 
 #include "engine/common/macros.h"
-#include "engine/runtime/render/rhi/render_base.hpp"
+#include "engine/runtime/render/render_base.hpp"
 
 namespace ShaderStory {
 
 class UIPass final : public RenderPassBase {
  public:
-  UIPass() = default;
-  ~UIPass() = default;
+  UIPass();
+  ~UIPass();
 
   void Initialize();
 
@@ -17,8 +17,6 @@ class UIPass final : public RenderPassBase {
 
   // special for ui pass.
   void SetVkPass(VkRenderPass);
-
-  void Dispose() override;
 
  private:
   void InitializeImGUIBackend();
