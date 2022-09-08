@@ -20,6 +20,7 @@ target_link_libraries(Engine PUBLIC tinyobjloader)
 target_link_libraries(Engine PUBLIC glm)
 target_link_libraries(Engine PUBLIC ${VULKAN_LIB})
 target_link_libraries(Engine PRIVATE imgui-vk)
+target_link_libraries(Engine PRIVATE stb)
 # TODO: shaderc lib
 target_link_libraries(Engine PUBLIC "/Users/dtup/VulkanSDK/1.3.216.0/macOS/lib/libshaderc_shared.1.dylib")
 
