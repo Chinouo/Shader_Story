@@ -11,13 +11,15 @@ void RenderResource::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
   m_rhi = rhi;
 
   CreateSamplers();
-  Texture2D big_texture = AssetsManager::LoadTextureFile("flat-RGBA.png");
+  MakeSun();
+  Texture2D big_texture =
+      AssetsManager::LoadTextureFile("assets/flat-RGBA.png");
 
   UploadTerrainTexture(big_texture);
   big_texture.Dispose();
 
   std::vector<StaticMesh> mesh_1 =
-      AssetsManager::LoadObjToStaticMeshes("flat.obj");
+      AssetsManager::LoadObjToStaticMeshes("assets/flat.obj");
 
   for (const auto& mesh : mesh_1) {
     UploadStaticMesh(mesh);
@@ -28,6 +30,8 @@ void RenderResource::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
 void RenderResource::Dispose() {
   auto allocator = m_rhi->m_vma_allocator;
   auto device = m_rhi->m_device;
+
+  sun_resource_object.Dispose(allocator, device);
 
   vmaUnmapMemory(allocator, perframe_data_obj.perframe_data_alloc);
   vmaDestroyBuffer(allocator, perframe_data_obj.perframe_data_buffer,
@@ -256,6 +260,7 @@ void RenderResource::UploadTerrainTexture(Texture2D& info) {
 }
 
 void RenderResource::CreateSamplers() {
+  // texture sampler
   VkSamplerCreateInfo sampler_create_info{
       VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
   sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -276,6 +281,83 @@ void RenderResource::CreateSamplers() {
   VK_CHECK(vkCreateSampler(m_rhi->m_device, &sampler_create_info, nullptr,
                            &m_sampler),
            "Create sampler failed.");
+
+  // depth sampler
+  VkSamplerCreateInfo shadowmap_sampler_create_info{
+      VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+  shadowmap_sampler_create_info.magFilter = VK_FILTER_LINEAR;
+  shadowmap_sampler_create_info.minFilter = VK_FILTER_LINEAR;
+  shadowmap_sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  shadowmap_sampler_create_info.addressModeU =
+      VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  shadowmap_sampler_create_info.addressModeV =
+      VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  shadowmap_sampler_create_info.addressModeW =
+      VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  shadowmap_sampler_create_info.mipLodBias = 0.0f;
+  shadowmap_sampler_create_info.maxAnisotropy = 1.0f;
+  shadowmap_sampler_create_info.minLod = 0.0f;
+  shadowmap_sampler_create_info.maxLod = 1.0f;
+  shadowmap_sampler_create_info.anisotropyEnable = VK_FALSE;
+  sampler_create_info.unnormalizedCoordinates = VK_FALSE;
+  sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+  shadowmap_sampler_create_info.borderColor =
+      VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+
+  VK_CHECK(vkCreateSampler(m_rhi->m_device, &shadowmap_sampler_create_info,
+                           nullptr, &sun_resource_object.shadowmap_sampler),
+           "Create shadowmap sampler failed.");
+}
+
+void RenderResource::MakeSun() {
+  VkFormat required_format = m_rhi->FindSupportFormat(
+      {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
+       VK_FORMAT_D24_UNORM_S8_UINT},
+      VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+  sun_resource_object.shadow_map_format = required_format;
+  sun_resource_object.shadowmap_width = 2048;
+  sun_resource_object.shadowmap_height = 2048;
+  //   sun_resource_object.shadowmap_width = m_rhi->m_swapchain_extent.width;
+  //   sun_resource_object.shadowmap_height = m_rhi->m_swapchain_extent.height;
+
+  VmaAllocationCreateInfo alloc_info{};
+  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+  alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+  alloc_info.priority = 1.0f;
+
+  VkImageCreateInfo image_create_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+  image_create_info.imageType = VK_IMAGE_TYPE_2D;
+  image_create_info.format = required_format;
+  image_create_info.arrayLayers = 1;
+  image_create_info.extent.width = sun_resource_object.shadowmap_width;
+  image_create_info.extent.height = sun_resource_object.shadowmap_height;
+  image_create_info.extent.depth = 1;
+  image_create_info.mipLevels = 1;
+  image_create_info.arrayLayers = 1;
+  image_create_info.samples = VK_SAMPLE_COUNT_1_BIT;
+  image_create_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+  image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+  image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  image_create_info.usage =
+      VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+  vmaCreateImage(m_rhi->m_vma_allocator, &image_create_info, &alloc_info,
+                 &sun_resource_object.sun_shadowmap_image,
+                 &sun_resource_object.sun_shadowmap_alloc, nullptr);
+
+  VkImageViewCreateInfo view_create_info{
+      VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+  view_create_info.image = sun_resource_object.sun_shadowmap_image;
+  view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  view_create_info.format = required_format;
+  view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+  view_create_info.subresourceRange.baseMipLevel = 0;
+  view_create_info.subresourceRange.levelCount = 1;
+  view_create_info.subresourceRange.baseArrayLayer = 0;
+  view_create_info.subresourceRange.layerCount = 1;
+
+  vkCreateImageView(m_rhi->m_device, &view_create_info, nullptr,
+                    &sun_resource_object.sun_shadowmap_image_view);
 }
 
 }  // namespace ShaderStory

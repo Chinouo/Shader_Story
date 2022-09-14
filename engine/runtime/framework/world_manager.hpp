@@ -2,6 +2,7 @@
 #define WORLD_MANAGER_HPP
 
 #include "engine/component/camera.hpp"
+#include "engine/component/lights.hpp"
 #include "engine/runtime/render/render_swap_data.hpp"
 
 namespace ShaderStory {
@@ -21,6 +22,8 @@ class WorldManager final {
 
  private:
   CameraComponent m_camera;
+
+  Sun sun;
 
   DISALLOW_COPY_ASSIGN_AND_MOVE(WorldManager);
 };

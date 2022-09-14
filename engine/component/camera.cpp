@@ -11,6 +11,13 @@ mat4 RenderCamera::GetViewProjectionMatrix() const {
   return proj * view;
 };
 
+mat4 RenderCamera::DebugGetViewProjectionMatrix() const {
+  mat4 proj = ortho(-200.f, 200.f, -200.f, 200.f, 0.03f, 500.f);
+  proj[1][1] *= -1;
+  mat4 view = lookAt(m_position, m_position + m_forward, m_up);
+  return proj * view;
+}
+
 vec3 RenderCamera::GetPosition() const { return m_position; }
 
 void RenderCamera::SetPosition(vec3& position) { m_position = position; }

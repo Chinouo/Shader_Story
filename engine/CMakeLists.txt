@@ -32,9 +32,7 @@ target_include_directories(Engine PUBLIC ${VULKAN_INCLUDE})
 #target_include_directories(Engine PUBLIC ${CMAKE_SOURCE_DIR}/third_party/imgui)
 
 
-## copy shader files
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/runtime/shaders
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 
 
 

@@ -16,8 +16,21 @@ class RenderCamera {
   ~RenderCamera() = default;
 
   mat4 GetViewProjectionMatrix() const;
-
   vec3 GetPosition() const;
+  mat4 GetInversedProjectionMatrix() const {
+    return inverse(GetViewProjectionMatrix());
+  };
+
+  mat4 DebugGetViewProjectionMatrix() const;
+
+  mat4 GetInverseViewMatrix() const {
+    return inverse(lookAt(m_position, m_position + m_forward, m_up));
+  }
+
+  float GetHalfFov() const { return m_fov / 2.f; };
+  float GetAspect() const { return m_aspect; };
+  float GetZnear() const { return m_znear; }
+  float GetZfar() const { return m_zfar; }
 
   void SetPosition(vec3&);
   void SetForward(vec3&);
@@ -33,7 +46,7 @@ class RenderCamera {
 
   float m_aspect{16.f / 9.f};
   float m_fov{45.f};
-  float m_zfar{500.f};
+  float m_zfar{70.f};
   float m_znear{0.03f};
 
   // degress

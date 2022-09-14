@@ -1,5 +1,6 @@
 #include "engine/runtime/render/rhi/vulkan/vk_utils.hpp"
 
+#include <exception>
 #include <fstream>
 
 #include "engine/common/macros.h"
@@ -21,7 +22,9 @@ std::vector<u_int32_t> VkUtil::GetSpirvBinary(const std::string& file,
   auto result = compiler.CompileGlslToSpv(buf.data(), buf.size(), shader_type,
                                           file.c_str());
 
-  ASSERT(result.GetErrorMessage().empty());
+  if (!result.GetErrorMessage().empty()) {
+    throw std::runtime_error(result.GetErrorMessage());
+  }
 
   return {result.cbegin(), result.cend()};
 }

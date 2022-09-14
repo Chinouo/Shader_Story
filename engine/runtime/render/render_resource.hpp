@@ -80,6 +80,25 @@ struct RenderTerrainTextureObject {
   }
 };
 
+/// Sun (direction light without position)
+struct SunResourceObject {
+  VkImage sun_shadowmap_image{VK_NULL_HANDLE};
+  VkImageView sun_shadowmap_image_view{VK_NULL_HANDLE};
+  VmaAllocation sun_shadowmap_alloc{VK_NULL_HANDLE};
+
+  VkFormat shadow_map_format{VK_FORMAT_UNDEFINED};
+  VkSampler shadowmap_sampler{VK_NULL_HANDLE};
+
+  u_int32_t shadowmap_width;
+  u_int32_t shadowmap_height;
+
+  void Dispose(VmaAllocator allocator, VkDevice device) {
+    vmaDestroyImage(allocator, sun_shadowmap_image, sun_shadowmap_alloc);
+    vkDestroyImageView(device, sun_shadowmap_image_view, nullptr);
+    vkDestroySampler(device, shadowmap_sampler, nullptr);
+  }
+};
+
 /// manager GPU data...
 /// singleton
 class RenderResource final {
@@ -92,7 +111,6 @@ class RenderResource final {
 
   // function below are used by our logic pass, see each xxxpass for detail.
  public:
-  // TODO: remove
   const std::unordered_map<std::string, RenderStaticMeshObject>&
   GetMeshesObject() {
     return m_mesh_objects;
@@ -104,6 +122,10 @@ class RenderResource final {
 
   const RenderTerrainTextureObject& GetTerrainTextureObject() const {
     return m_terrain_texture_object;
+  }
+
+  const SunResourceObject& GetSunResourceObject() const {
+    return sun_resource_object;
   }
 
   VkSampler GetTerrainSampler() const { return m_sampler; }
@@ -134,6 +156,8 @@ class RenderResource final {
 
   void CreateSamplers();
 
+  void MakeSun();
+
  private:
   /// perframe data obj
   PerframeDataBufferObject perframe_data_obj;
@@ -146,6 +170,9 @@ class RenderResource final {
 
   ///  sampler, can use for terrain sampler.
   VkSampler m_sampler{VK_NULL_HANDLE};
+
+  /// sun shadowmap resource
+  SunResourceObject sun_resource_object;
 
  private:
   std::shared_ptr<RHI::VKRHI> m_rhi;

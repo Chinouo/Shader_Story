@@ -23,6 +23,7 @@ void RenderPipeline::Initilaize(
 
 void RenderPipeline::RecordCommands() {
   // test_pass->RunPass();
+  sun_pass->RunPass();
   mesh_pass->RunPass();
   ui_pass->RunPass();
 }
@@ -33,13 +34,18 @@ void RenderPipeline::RecreatePipeline() {
 }
 
 void RenderPipeline::DestoryPasses() {
+  sun_pass.reset();
   ui_pass.reset();
   mesh_pass.reset();
 }
 
 void RenderPipeline::SetupPasses() {
+  sun_pass = std::make_unique<SunPass>();
   ui_pass = std::make_unique<UIPass>();
   mesh_pass = std::make_unique<MeshPass>();
+
+  sun_pass->PreInitialize({m_rhi, m_resource});
+  sun_pass->Initialze();
 
   mesh_pass->PreInitialize({m_rhi, m_resource});
   mesh_pass->Initialize();

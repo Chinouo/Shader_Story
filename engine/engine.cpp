@@ -25,13 +25,10 @@ void Engine::RunInitialedEngine() {
   auto render_task = [=, &render_data_ready, &race_frame_idx]() {
     int buf_idx = 0;
 
-    // std::chrono::steady_clock clock;
-    // auto last_logic_frame_time = std::chrono::steady_clock::now();
     long frame = 0;
     while (true) {
       render_data_ready.Wait();
       if (should_shutdown) break;
-      // std::cout << "tick render..\n";
 
       auto render_task_start = std::chrono::steady_clock::now();
       TickRender(0.f);
@@ -39,12 +36,7 @@ void Engine::RunInitialedEngine() {
       auto render_task_end = std::chrono::steady_clock::now();
       std::chrono::duration<double, std::milli> render_span =
           render_task_end - render_task_start;
-      // std::this_thread::sleep_for(std::chrono::seconds(5));
       CalculateFPS(render_span.count());
-      // std::cout << "gpu time:" << render_span.count() << std::endl;
-      //  std::cout << "r: " << buf_idx << std::endl;
-      //   std::cout << "render thread time:" << render_span.count()
-      //             << " f: " << frame << std::endl;
 
       buf_idx = (buf_idx + 1) % k_swap_size;
       ++frame;
@@ -62,7 +54,7 @@ void Engine::RunInitialedEngine() {
     while (true) {
       race_frame_idx.Wait();
       if (should_shutdown) break;
-      // std::cout << "logic tick.\n";
+
       auto logic_task_start = std::chrono::steady_clock::now();
       TickLogic(0.f);
       SwapLogicData(buf_idx);
@@ -71,10 +63,6 @@ void Engine::RunInitialedEngine() {
       std::chrono::duration<double, std::milli> task_span =
           logic_task_end - logic_task_start;
 
-      // std::cout << "cpu time:" << task_span.count() << std::endl;
-      //  std::cout << "cpu time:" << task_span.count() << " f: " << frame
-      //            << std::endl;
-      //  std::cout << "l: " << buf_idx << std::endl;
       buf_idx = (buf_idx + 1) % k_swap_size;
       ++frame;
       render_data_ready.Signal();
@@ -120,20 +108,15 @@ void Engine::TickRender(double delta_time) {
 
 void Engine::TickLogic(double delta_time) {
   g_runtime_global_context.m_world_manager->Tick(delta_time);
-  //  g_runtime_global_context.m_input_sys->Tick();
-  //   int val = arc4random() % 1000;
-  //   std::this_thread::sleep_for(std::chrono::milliseconds(5000));
 }
 
 void Engine::SwapLogicData(int available_slot) {
-  // std::cout << "logic write into:" << available_slot << std::endl;
   SwapData& cur_swap_data =
       g_runtime_global_context.m_swap_context->GetSwapData(available_slot);
   g_runtime_global_context.m_world_manager->LoadSwapData(cur_swap_data);
 }
 
 void Engine::SwapRenderData(int available_slot) {
-  // std::cout << "render read from:" << available_slot << std::endl;
   const SwapData& cur_swap_data =
       g_runtime_global_context.m_swap_context->GetSwapData(available_slot);
   g_runtime_global_context.m_render_sys->ConsumeSwapdata(cur_swap_data);
@@ -155,8 +138,6 @@ void Engine::CalculateFPS(double delta_time) {
   }
 
   m_fps = static_cast<int>(1000.f / m_average_duration);
-
-  // std::cout << "FPS:" << m_fps << std::endl;
 }
 
 }  // namespace ShaderStory
