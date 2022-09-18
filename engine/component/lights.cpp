@@ -2,6 +2,15 @@
 
 #include <iostream>
 namespace ShaderStory {
+
+Sun::Sun() {
+  m_cascade_plane[0] = 0.f;
+  m_cascade_plane[1] = 50.f;
+  m_cascade_plane[2] = 300.f;
+}
+
+Sun::~Sun() {}
+
 void Sun::Tick(double delta_time) {
   // if direction is parallel with world up, cross will get Nan.
   m_position = vec3(30.f, 60.1f, 90.f);

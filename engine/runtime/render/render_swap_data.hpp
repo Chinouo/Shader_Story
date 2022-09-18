@@ -14,6 +14,13 @@ typedef struct {
   alignas(16) vec3 sun_position_ws;
 } PerframeData;
 
+typedef struct {
+  mat4 cascade_sun_viewproj[3];
+  mat4 place_holder_1;
+  mat4 place_holder_2;
+  mat4 place_holder_3;
+} PerframeStorageBufferData;
+
 struct SwapData {
   PerframeData perframe_data;
 };

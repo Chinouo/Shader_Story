@@ -381,7 +381,7 @@ void MeshPass::CreateDesciptorSet() {
   sun_shadowmap_info.imageLayout =
       VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
   sun_shadowmap_info.imageView =
-      m_resources->GetSunResourceObject().sun_shadowmap_image_view;
+      m_resources->GetSunResourceObject().cascade_shadowmap_view;
   sun_shadowmap_info.sampler =
       m_resources->GetSunResourceObject().shadowmap_sampler;
 

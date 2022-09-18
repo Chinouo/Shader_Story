@@ -46,7 +46,7 @@ class RenderCamera {
 
   float m_aspect{16.f / 9.f};
   float m_fov{45.f};
-  float m_zfar{70.f};
+  float m_zfar{200.f};
   float m_znear{0.03f};
 
   // degress

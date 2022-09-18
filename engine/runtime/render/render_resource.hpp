@@ -32,6 +32,27 @@ struct PerframeDataBufferObject {
   };
 };
 
+/// dynamic data, using readonly storage buffer, similar to uniform.
+struct PerframeStorageBufferObject {
+  PerframeStorageBufferData data;
+  void* mapped_mem;
+  const u_int32_t mem_align{256};
+
+  VkBuffer buf{VK_NULL_HANDLE};
+  VmaAllocation alloc{VK_NULL_HANDLE};
+  VmaAllocationInfo alloc_info;
+
+  constexpr size_t GetOffset(size_t sz) {
+    return (mem_align + sz - 1) & ~(sz - 1);
+  }
+
+  void SetData(const PerframeStorageBufferData& data, int index) {
+    size_t sz = sizeof(PerframeStorageBufferData);
+    void* dst_with_offset = (char*)(mapped_mem) + index * GetOffset(sz);
+    memcpy(dst_with_offset, &data, sz);
+  };
+};
+
 /// basic simple mesh data.
 struct RenderStaticMeshObject {
   VkBuffer mesh_vert_buf;
@@ -82,21 +103,55 @@ struct RenderTerrainTextureObject {
 
 /// Sun (direction light without position)
 struct SunResourceObject {
-  VkImage sun_shadowmap_image{VK_NULL_HANDLE};
-  VkImageView sun_shadowmap_image_view{VK_NULL_HANDLE};
-  VmaAllocation sun_shadowmap_alloc{VK_NULL_HANDLE};
+  static const int SHADOWMAP_RES = 2048;
+  static const int SHADOWMAP_CNT = 3;
+
+  VkImage cascade_shadowmap_image{VK_NULL_HANDLE};
+  // for debug.
+  VkImageView cascade_shadowmap_view{VK_NULL_HANDLE};
+  VmaAllocation cascade_shadowmap_alloc{VK_NULL_HANDLE};
+
+  // for framebuffer write.
+  std::array<VkImageView, 3> cascade_shadowmap_views;
 
   VkFormat shadow_map_format{VK_FORMAT_UNDEFINED};
   VkSampler shadowmap_sampler{VK_NULL_HANDLE};
-
   u_int32_t shadowmap_width;
   u_int32_t shadowmap_height;
 
   void Dispose(VmaAllocator allocator, VkDevice device) {
-    vmaDestroyImage(allocator, sun_shadowmap_image, sun_shadowmap_alloc);
-    vkDestroyImageView(device, sun_shadowmap_image_view, nullptr);
+    vmaDestroyImage(allocator, cascade_shadowmap_image,
+                    cascade_shadowmap_alloc);
+    vkDestroyImageView(device, cascade_shadowmap_view, nullptr);
     vkDestroySampler(device, shadowmap_sampler, nullptr);
   }
+};
+
+// G-Buffer data
+struct GBufferObject {
+  VkImage gPositionImg{VK_NULL_HANDLE};
+  VkImageView gPositionView{VK_NULL_HANDLE};
+  VmaAllocation gPositionAlloc{VK_NULL_HANDLE};
+
+  VkImage gColorImg{VK_NULL_HANDLE};
+  VkImageView gColorView{VK_NULL_HANDLE};
+  VmaAllocation gColorAlloc{VK_NULL_HANDLE};
+
+  VkImage gNormalImg{VK_NULL_HANDLE};
+  VkImageView gNormalView{VK_NULL_HANDLE};
+  VmaAllocation gNormalAlloc{VK_NULL_HANDLE};
+
+  VkImage gDepth{VK_NULL_HANDLE};
+  VkImageView gDepthView{VK_NULL_HANDLE};
+  VmaAllocation gDepthAlloc{VK_NULL_HANDLE};
+};
+
+struct GBufferResources {
+  std::array<GBufferObject, MAX_FRAMES_IN_FLIGHT> gBufferObjects;
+  VkFormat gDepthFmt{VK_FORMAT_UNDEFINED};
+  u_int32_t gDepthWidth{0};
+  u_int32_t gDepthHeight{0};
+  VkSampler gBufferSampler{VK_NULL_HANDLE};
 };
 
 /// manager GPU data...
@@ -128,6 +183,14 @@ class RenderResource final {
     return sun_resource_object;
   }
 
+  const GBufferResources& GetGBufferResources() const {
+    return m_g_buffer_resources;
+  }
+
+  const GBufferObject& GetGBufferObject(size_t idx) const {
+    return m_g_buffer_resources.gBufferObjects[idx];
+  }
+
   VkSampler GetTerrainSampler() const { return m_sampler; }
 
  public:
@@ -143,6 +206,10 @@ class RenderResource final {
   // perframe data, camera etc.
   void CreatePerFrameData();
 
+  void CreatePerFrameStorageBuffer();
+
+  void CreateDeferedObject();
+
   void UploadStaticMesh(const StaticMesh&);
 
  private:
@@ -156,12 +223,12 @@ class RenderResource final {
 
   void CreateSamplers();
 
-  void MakeSun();
+  void SetUpSunResources();
 
  private:
   /// perframe data obj
   PerframeDataBufferObject perframe_data_obj;
-
+  PerframeStorageBufferObject perframe_storage_obj;
   /// store all loaded mesh, data located in GPU.
   std::unordered_map<std::string, RenderStaticMeshObject> m_mesh_objects;
 
@@ -173,6 +240,8 @@ class RenderResource final {
 
   /// sun shadowmap resource
   SunResourceObject sun_resource_object;
+
+  GBufferResources m_g_buffer_resources;
 
  private:
   std::shared_ptr<RHI::VKRHI> m_rhi;

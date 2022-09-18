@@ -36,8 +36,8 @@ class PointLight {
 
 class Sun : public DirectionLight {
  public:
-  Sun() = default;
-  ~Sun() = default;
+  Sun();
+  ~Sun();
 
   void Tick(double delta_time) override;
 
@@ -50,6 +50,10 @@ class Sun : public DirectionLight {
   mat4 GetViewProjMatrixTest(const RenderCamera& camera) const;
 
  private:
+  static const int cascade_count = 3;
+
+  float m_cascade_plane[cascade_count];
+
 };  // namespace ShaderStory
 
 }  // namespace ShaderStory

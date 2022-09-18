@@ -22,9 +22,9 @@ void RenderPipeline::Initilaize(
 }
 
 void RenderPipeline::RecordCommands() {
-  // test_pass->RunPass();
-  sun_pass->RunPass();
-  mesh_pass->RunPass();
+  main_camera_pass->RunPass();
+  // sun_pass->RunPass();
+  // mesh_pass->RunPass();
   ui_pass->RunPass();
 }
 
@@ -34,12 +34,17 @@ void RenderPipeline::RecreatePipeline() {
 }
 
 void RenderPipeline::DestoryPasses() {
+  main_camera_pass.reset();
   sun_pass.reset();
   ui_pass.reset();
   mesh_pass.reset();
 }
 
 void RenderPipeline::SetupPasses() {
+  main_camera_pass = std::make_unique<MainCameraPass>();
+  main_camera_pass->PreInitialize({m_rhi, m_resource});
+  main_camera_pass->Initialze();
+
   sun_pass = std::make_unique<SunPass>();
   ui_pass = std::make_unique<UIPass>();
   mesh_pass = std::make_unique<MeshPass>();
@@ -51,7 +56,7 @@ void RenderPipeline::SetupPasses() {
   mesh_pass->Initialize();
 
   ui_pass->PreInitialize({m_rhi, m_resource});
-  ui_pass->SetVkPass(mesh_pass->GetVkRenderPassForUI());
+  ui_pass->SetVkPass(main_camera_pass->GetVkPass());
   ui_pass->Initialize();
 }
 }  // namespace ShaderStory

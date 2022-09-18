@@ -38,7 +38,6 @@ void UIPass::RunPass() {
   if (ImGui::Button("Recreate")) {
     g_runtime_global_context.m_render_sys->AddPostFrameCallback(
         []() { g_runtime_global_context.m_render_sys->ReloadPipeline(); });
-    ;
   }
 
   ImGui::End();
