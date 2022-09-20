@@ -1,5 +1,6 @@
 #include "engine/runtime/global/global.hpp"
 
+#include "engine/runtime/framework/ui_manager.hpp"
 #include "engine/runtime/framework/world_manager.hpp"
 #include "engine/runtime/io/input_system.hpp"
 #include "engine/runtime/render/render_system.hpp"
@@ -14,11 +15,13 @@ void RuntimeGlobalContext::StartSystems() {
   m_render_sys = std::make_shared<RenderSystem>();
   m_input_sys = std::make_shared<InputSystem>();
   m_world_manager = std::make_shared<WorldManager>();
+  m_ui_manager = std::make_shared<UIManager>();
 
   m_window_sys->Initialize();
   m_render_sys->Initialize();
   m_input_sys->Initialize();
   m_world_manager->Initialize();
+  m_ui_manager->Initialize();
 
   m_swap_context = std::make_unique<RenderSwapData>();
 }

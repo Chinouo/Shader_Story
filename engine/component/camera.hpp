@@ -20,6 +20,7 @@ class RenderCamera {
   mat4 GetInversedProjectionMatrix() const {
     return inverse(GetViewProjectionMatrix());
   };
+  mat4 GetViewMatrix() const;
 
   mat4 DebugGetViewProjectionMatrix() const;
 
@@ -28,6 +29,7 @@ class RenderCamera {
   }
 
   float GetHalfFov() const { return m_fov / 2.f; };
+  float GetFov() const { return m_fov; }
   float GetAspect() const { return m_aspect; };
   float GetZnear() const { return m_znear; }
   float GetZfar() const { return m_zfar; }
@@ -46,7 +48,7 @@ class RenderCamera {
 
   float m_aspect{16.f / 9.f};
   float m_fov{45.f};
-  float m_zfar{200.f};
+  float m_zfar{300.f};
   float m_znear{0.03f};
 
   // degress
@@ -56,12 +58,14 @@ class RenderCamera {
 
 /// @brief When process position, using Logic Tick,
 /// but when process cursor, using listener and mutex for a smooth rotation.
-class CameraComponent final : public RenderCamera {
+class CameraComponent final : public RenderCamera, public ReflectUIComponent {
  public:
   CameraComponent() = default;
   ~CameraComponent() = default;
 
   void Tick(double delta_time);
+  void OnDrawUI() const override;
+    void SetUpRenderRenderCameraUI();
 
  private:
   float m_speed{0.3f};
@@ -70,6 +74,8 @@ class CameraComponent final : public RenderCamera {
   bool m_is_first_cursor_pos{true};
   float m_last_cursor_x{0.f};
   float m_last_cursor_y{0.f};
+
+  mutable bool need_draw_ui{true};
 
   // TODO: implement.
   std::mutex m_proj_view_mat_mtx;

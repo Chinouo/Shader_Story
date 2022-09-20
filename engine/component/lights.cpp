@@ -1,15 +1,17 @@
 #include "engine/component/lights.hpp"
 
 #include <iostream>
+
+#include "engine/runtime/framework/ui_manager.hpp"
 namespace ShaderStory {
 
-Sun::Sun() {
-  m_cascade_plane[0] = 0.f;
-  m_cascade_plane[1] = 50.f;
-  m_cascade_plane[2] = 300.f;
-}
+Sun::Sun() {}
 
 Sun::~Sun() {}
+
+void Sun::SetUpUIComponent() {
+  g_runtime_global_context.m_ui_manager->AddUIComponent(this);
+}
 
 void Sun::Tick(double delta_time) {
   // if direction is parallel with world up, cross will get Nan.
@@ -168,6 +170,85 @@ mat4 Sun::GetViewProjMatrixTest(const RenderCamera& camera) const {
   auto m2 = ortho(-150.f, 150.f, -150.f, 150.f, 0.f, 200.f);
 
   return m2 * m1;
+}
+
+std::array<mat4, 3> Sun::GetCascadeViewProjMatrices(
+    const RenderCamera& camera) const {
+  std::array<mat4, 3> ret;
+  float fov = camera.GetFov();
+  float aspect = camera.GetAspect();
+  mat4 view = camera.GetViewMatrix();
+  for (int i = 0; i < m_cascade_distances.size() - 1; ++i) {
+    mat4 proj = perspective(fov, aspect, m_cascade_distances[i],
+                            m_cascade_distances[i + 1]);
+    proj[1][1] *= -1;
+    ret[i] = MakeCascadeViewProjMatrix(proj * view);
+  }
+
+  return ret;
+}
+
+mat4 Sun::MakeCascadeViewProjMatrix(const mat4& view_proj_mat) const {
+  mat4 inversed_proj_view_matrix = inverse(view_proj_mat);
+
+  std::array<vec3, 8> frustum_corners = ndc_points;
+  for (size_t i = 0; i < frustum_corners.size(); ++i) {
+    vec4 temp = inversed_proj_view_matrix * vec4(frustum_corners[i], 1.f);
+    frustum_corners[i] = temp / temp.w;
+  }
+
+  vec3 frustum_center_ws = vec3(0.f, 0.f, 0.f);
+  for (size_t i = 0; i < 8; ++i) {
+    frustum_center_ws += frustum_corners[i];
+  }
+  frustum_center_ws /= 8.f;
+
+  float radius = 0.f;
+
+  for (size_t i = 0; i < 8; ++i) {
+    float distance = length(frustum_corners[i] - frustum_center_ws);
+    radius = max(radius, distance);
+  }
+
+  radius = ceil(radius * 16.f) / 16.f;
+
+  glm::vec3 maxExtents = glm::vec3(radius);
+  glm::vec3 minExtents = -maxExtents;
+  glm::vec3 lightDir = normalize(m_direction);
+
+  // 计算LookAt矩阵
+  glm::mat4 lightViewMatrix = glm::lookAt(
+      frustum_center_ws + lightDir * minExtents.z, frustum_center_ws, world_up);
+
+  // 计算正交矩阵
+  glm::mat4 lightOrthoMatrix;
+  lightOrthoMatrix =
+      glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f,
+                 maxExtents.z - minExtents.z);
+
+  mat4 shadow_view_proj = lightOrthoMatrix * lightViewMatrix;
+
+  // ShadowMap Texel Align
+  vec4 shadowOrigin = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+  shadowOrigin = shadow_view_proj * shadowOrigin;
+  shadowOrigin = shadowOrigin * (2048.f * 0.5f);
+  vec4 roundOrign = glm::round(shadowOrigin);
+  vec4 roundOffset = roundOrign - shadowOrigin;
+  roundOffset = roundOffset * (2.0f / 2048.f);
+
+  lightOrthoMatrix[3][0] = lightOrthoMatrix[3][0] + roundOffset.x;
+  lightOrthoMatrix[3][1] = lightOrthoMatrix[3][1] + roundOffset.y;
+
+  return lightOrthoMatrix * lightViewMatrix;
+}
+
+void Sun::OnDrawUI() const {
+  ImGui::Begin("Sun", &display_ui, ImGuiWindowFlags_MenuBar);
+
+  ImGui::Text("Sun Position: x: %.3f y: %.3f z: %.3f", m_position.x,
+              m_position.y, m_position.z);
+
+  ImGui::End();
 }
 
 }  // namespace ShaderStory

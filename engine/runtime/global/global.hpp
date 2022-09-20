@@ -11,6 +11,7 @@ class RenderSystem;
 class WindowSystem;
 class InputSystem;
 class WorldManager;
+class UIManager;
 class RenderSwapData;
 
 class RuntimeGlobalContext final {
@@ -26,6 +27,7 @@ class RuntimeGlobalContext final {
   std::shared_ptr<WindowSystem> m_window_sys;
   std::shared_ptr<InputSystem> m_input_sys;
   std::shared_ptr<WorldManager> m_world_manager;
+  std::shared_ptr<UIManager> m_ui_manager;
 
   std::unique_ptr<RenderSwapData> m_swap_context;
 

@@ -2,7 +2,8 @@
 
 layout(set = 0, binding = 0) uniform PerframeData {
   mat4 proj_view_matrix;
-  mat4 sun_proj_view_matrix;
+  mat4 camera_view_matrix;
+  mat4 cascade_proj_view_matrices[3];
   vec3 camera_position;
   vec3 sun_ray_direction;
   vec3 sun_position_ws;

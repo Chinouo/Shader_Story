@@ -15,8 +15,18 @@ namespace ShaderStory {
 using KeyCallback = std::function<void(int, int, int, int)>;
 using CursorPosCallback = std::function<void(int, int)>;
 
+enum class WindowMode : u_int32_t {
+  PLAY,
+  EDIT,
+};
+
 class WindowSystem final {
  public:
+  static void keyCallback(GLFWwindow* window, int key, int scancode, int action,
+                          int mods);
+
+  static void cursorPosCallback(GLFWwindow* window, double xpos, double ypos);
+
   WindowSystem(int width, int height);
   ~WindowSystem();
 
@@ -40,25 +50,28 @@ class WindowSystem final {
   void registerKeyCallback(KeyCallback&&);
   void registerCurPosCallbakc(CursorPosCallback&&);
 
+  void PerformModeChange(WindowMode target);
+
+ private:
+  // internal callback.
+  void onKey(int key, int scancode, int action, int mods);
+  void onCursorPos(double xpos, double ypos);
+
+  bool isEditMode() const { return mode == WindowMode::EDIT; }
+
  private:
   GLFWwindow* m_wd;
+
+  // if in edit mode, event is down to imgui, else to our callback.
+  WindowMode mode{WindowMode::EDIT};
 
   int m_width;
   int m_height;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WindowSystem);
 
-  // internal callback.
-  void onKey(int key, int scancode, int action, int mods);
-  void onCursorPos(double xpos, double ypos);
-
   std::vector<KeyCallback> m_key_callbacks;
   std::vector<CursorPosCallback> m_cur_callbacks;
-
-  static void keyCallback(GLFWwindow* window, int key, int scancode, int action,
-                          int mods);
-
-  static void cursorPosCallback(GLFWwindow* window, double xpos, double ypos);
 };
 
 }  // namespace ShaderStory

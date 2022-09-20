@@ -58,7 +58,7 @@ void RenderResource::Dispose() {
 
 void RenderResource::CreatePerFrameData() {
   VkBufferCreateInfo buf_create_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  buf_create_info.size = perframe_data_obj.min_algiment * MAX_FRAMES_IN_FLIGHT;
+  buf_create_info.size = perframe_data_obj.GetOffset() * MAX_FRAMES_IN_FLIGHT;
   buf_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
   VmaAllocationCreateInfo alloc_create_info{};
@@ -553,7 +553,8 @@ void RenderResource::CreateDeferedObject() {
     image_info.arrayLayers = 1;
     image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
     image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                       VK_IMAGE_USAGE_SAMPLED_BIT;
     image_info.samples = VK_SAMPLE_COUNT_1_BIT;
     image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 

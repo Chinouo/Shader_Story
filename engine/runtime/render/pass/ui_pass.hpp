@@ -2,6 +2,7 @@
 #define UI_PASS
 
 #include "engine/common/macros.h"
+#include "engine/component/base_component.hpp"
 #include "engine/runtime/render/render_base.hpp"
 
 namespace ShaderStory {
@@ -22,6 +23,7 @@ class UIPass final : public RenderPassBase {
   void InitializeImGUIBackend();
   void UploadFonts();
 
+ private:
   VkRenderPass m_pass{VK_NULL_HANDLE};
 
   DISALLOW_COPY_ASSIGN_AND_MOVE(UIPass);

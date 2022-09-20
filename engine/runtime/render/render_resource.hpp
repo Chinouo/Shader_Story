@@ -26,8 +26,13 @@ struct PerframeDataBufferObject {
   // spec allowed max aligment of uniform buffer in bytes.
   u_int32_t min_algiment{256};
 
+  constexpr size_t GetOffset() const {
+    const size_t sz = sizeof(PerframeData);
+    return (min_algiment + sz - 1) & ~(sz - 1);
+  }
+
   void SetData(const PerframeData& data, int index) {
-    void* dst_with_offset = (char*)mapped_memory + index * min_algiment;
+    void* dst_with_offset = (char*)mapped_memory + index * GetOffset();
     memcpy(dst_with_offset, &data, sizeof(PerframeData));
   };
 };
@@ -107,7 +112,7 @@ struct SunResourceObject {
   static const int SHADOWMAP_CNT = 3;
 
   VkImage cascade_shadowmap_image{VK_NULL_HANDLE};
-  // for debug.
+  // for composite read.
   VkImageView cascade_shadowmap_view{VK_NULL_HANDLE};
   VmaAllocation cascade_shadowmap_alloc{VK_NULL_HANDLE};
 

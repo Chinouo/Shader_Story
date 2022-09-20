@@ -18,6 +18,8 @@ class RenderPipeline final {
   void Initilaize(std::shared_ptr<RHI::VKRHI> rhi,
                   std::shared_ptr<RenderResource> render_resource);
 
+  void RegisterUIComponent(ReflectUIComponent*);
+
   void RecreatePipeline();
   void RecordCommands();
 

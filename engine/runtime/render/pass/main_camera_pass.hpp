@@ -40,6 +40,10 @@ class MainCameraPass : public RenderPassBase {
   // multi sets for g-buffer sample.
   VkDescriptorSetLayout m_composite_gbuffer_set_layout{VK_NULL_HANDLE};
   std::vector<VkDescriptorSet> m_composite_gbuffer_sets;
+  // multi sets for cascade-shadowmap
+  VkDescriptorSetLayout m_cascade_shadowmaps_set_layout{VK_NULL_HANDLE};
+  std::vector<VkDescriptorSet> m_cascade_shadowmap_sets;
+
   VkPipelineLayout m_composite_pipeline_layout{VK_NULL_HANDLE};
   VkPipeline m_composite_pipeline{VK_NULL_HANDLE};
   std::vector<VkFramebuffer> m_composite_framebuffers;

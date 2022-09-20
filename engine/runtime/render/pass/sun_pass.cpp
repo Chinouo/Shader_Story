@@ -22,33 +22,42 @@ void SunPass::Dispose() {}
 void SunPass::RunPass() {
   VkCommandBuffer command_buffer = m_rhi->GetCurrentCommandBuffer();
 
+  VkRenderPassBeginInfo renderPassInfo{};
+  renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+  renderPassInfo.renderPass = m_sun_shadowmap_pass;
+  renderPassInfo.framebuffer =
+      m_framebuffers[m_rhi->m_current_swapchain_image_index];
+  renderPassInfo.renderArea.offset = {0, 0};
+  renderPassInfo.renderArea.extent.width =
+      m_resources->GetSunResourceObject().shadowmap_width;
+  renderPassInfo.renderArea.extent.height =
+      m_resources->GetSunResourceObject().shadowmap_height;
+
+  std::array<VkClearValue, 1> clear_vals;
+  clear_vals[0].depthStencil = {1.f, 0};
+  renderPassInfo.clearValueCount = clear_vals.size();
+  renderPassInfo.pClearValues = clear_vals.data();
+
   for (int i = 0; i < SunResourceObject::SHADOWMAP_CNT; ++i) {
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_sun_shadowmap_pass;
-    renderPassInfo.framebuffer =
-        m_framebuffers[m_rhi->m_current_swapchain_image_index];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent.width =
-        m_resources->GetSunResourceObject().shadowmap_width;
-    renderPassInfo.renderArea.extent.height =
-        m_resources->GetSunResourceObject().shadowmap_height;
-
-    std::array<VkClearValue, 1> clear_vals;
-    clear_vals[0].depthStencil = {1.f, 0};
-    renderPassInfo.clearValueCount = clear_vals.size();
-    renderPassInfo.pClearValues = clear_vals.data();
-
     vkCmdBeginRenderPass(command_buffer, &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
 
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       m_sun_shadowmap_pipeline);
-    u_int32_t cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-    u_int32_t algiment = m_resources->GetPerframeDataObject().min_algiment;
-    u_int32_t dy_offsets = cur_frame_idx * algiment;
 
-    // TODO: bind correct cascade shadowmap array, and data.
+    u_int32_t cur_frame_idx = m_rhi->GetCurrentFrameIndex();
+    size_t offset = m_resources->GetPerframeDataObject().GetOffset();
+    u_int32_t dy_offsets = cur_frame_idx * offset;
+
+    PushConstantBlock constant_block{};
+    constant_block.cascade_index = i;
+    assert(constant_block.cascade_index >= 0 &&
+           constant_block.cascade_index < 3);
+
+    vkCmdPushConstants(command_buffer, m_sun_shadowmap_pipeline_layout,
+                       VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(constant_block),
+                       &constant_block);
+
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                             m_sun_shadowmap_pipeline_layout, 0, 1,
                             &m_shadowmap_desp_set, 1, &dy_offsets);
@@ -166,12 +175,18 @@ void SunPass::CreateVkRenderPipeline() {
   VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo,
                                                     fragShaderStageInfo};
 
+  VkPushConstantRange constant_range;
+  constant_range.offset = 0;
+  constant_range.size = sizeof(PushConstantBlock);
+  constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
   // setup data
   VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
   pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
   pipelineLayoutInfo.pSetLayouts = &m_sun_shadowmap_desp_set_layout;
   pipelineLayoutInfo.setLayoutCount = 1;
-  pipelineLayoutInfo.pushConstantRangeCount = 0;
+  pipelineLayoutInfo.pushConstantRangeCount = 1;
+  pipelineLayoutInfo.pPushConstantRanges = &constant_range;
 
   VK_CHECK(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr,
                                   &m_sun_shadowmap_pipeline_layout),

@@ -20,6 +20,7 @@ void MainCameraPass::Dispose() {}
 
 void MainCameraPass::RunPass() {
   VkCommandBuffer command_buffer = m_rhi->GetCurrentCommandBuffer();
+
   // offscreen pass
   {
     VkRenderPassBeginInfo renderPassInfo{};
@@ -45,8 +46,8 @@ void MainCameraPass::RunPass() {
                       m_offscreen_pipeline);
 
     u_int32_t cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-    u_int32_t algiment = m_resources->GetPerframeDataObject().min_algiment;
-    u_int32_t dy_offsets = cur_frame_idx * algiment;
+    size_t offset = m_resources->GetPerframeDataObject().GetOffset();
+    u_int32_t dy_offsets = cur_frame_idx * offset;
 
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                             m_offscreen_pipeline_layout, 0, 1, &m_offscreen_set,
@@ -86,15 +87,16 @@ void MainCameraPass::RunPass() {
                       m_composite_pipeline);
 
     u_int32_t cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-    u_int32_t algiment = m_resources->GetPerframeDataObject().min_algiment;
-    u_int32_t dy_offsets = cur_frame_idx * algiment;
+    size_t offset = m_resources->GetPerframeDataObject().GetOffset();
+    u_int32_t dy_offsets = cur_frame_idx * offset;
 
-    std::array<VkDescriptorSet, 2> bound_sets;
+    std::array<VkDescriptorSet, 3> bound_sets;
     bound_sets[0] = m_composite_dybuffer_set;
     bound_sets[1] = m_composite_gbuffer_sets[cur_frame_idx];
+    bound_sets[2] = m_cascade_shadowmap_sets[cur_frame_idx];
 
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            m_composite_pipeline_layout, 0, 2,
+                            m_composite_pipeline_layout, 0, bound_sets.size(),
                             bound_sets.data(), 1, &dy_offsets);
 
     vkCmdDraw(command_buffer, 6, 1, 0, 0);
@@ -148,7 +150,7 @@ void MainCameraPass::CreateVkRenderPass() {
     attachments[3].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     attachments[3].finalLayout =
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
     attachments[3].flags = 0;
 
     std::array<VkAttachmentReference, 3> color_refs;
@@ -191,6 +193,27 @@ void MainCameraPass::CreateVkRenderPass() {
 
     dependencies[1].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    // std::array<VkSubpassDependency, 2> dependencies;
+    // // for wrtie
+    // dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+    // dependencies[0].dstSubpass = 0;
+    // dependencies[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    // dependencies[0].dstStageMask =
+    // VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT; dependencies[0].srcAccessMask
+    // = VK_ACCESS_SHADER_READ_BIT; dependencies[0].dstAccessMask =
+    //     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    // dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+
+    // // for read
+    // dependencies[1].srcSubpass = 0;
+    // dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+    // dependencies[1].srcStageMask =
+    // VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT; dependencies[1].dstStageMask
+    // = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; dependencies[1].srcAccessMask =
+    //     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    // dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    // dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -304,7 +327,7 @@ void MainCameraPass::CreateDesciptorSetLayout() {
                                          &m_composite_dybuffer_set_layout),
              "Failed to create offscreen desp set layout.");
 
-    std::array<VkDescriptorSetLayoutBinding, 3> gbuffer_bindings;
+    std::array<VkDescriptorSetLayoutBinding, 4> gbuffer_bindings;
     // g-position.
     gbuffer_bindings[0].binding = 0;
     gbuffer_bindings[0].descriptorCount = 1;
@@ -329,11 +352,39 @@ void MainCameraPass::CreateDesciptorSetLayout() {
     gbuffer_bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     gbuffer_bindings[2].pImmutableSamplers = nullptr;
 
+    // g-depth
+    gbuffer_bindings[3].binding = 3;
+    gbuffer_bindings[3].descriptorCount = 1;
+    gbuffer_bindings[3].descriptorType =
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    gbuffer_bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    gbuffer_bindings[3].pImmutableSamplers = nullptr;
+
     info.bindingCount = gbuffer_bindings.size();
     info.pBindings = gbuffer_bindings.data();
 
     VK_CHECK(vkCreateDescriptorSetLayout(m_rhi->m_device, &info, nullptr,
                                          &m_composite_gbuffer_set_layout),
+             "Failed to create composite gbuffer desp set layout.");
+  }
+
+  // cascade shadowmap
+  {
+    VkDescriptorSetLayoutBinding cascade_shadowmap_binding{};
+    cascade_shadowmap_binding.binding = 0;
+    cascade_shadowmap_binding.descriptorCount = 1;
+    cascade_shadowmap_binding.descriptorType =
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    cascade_shadowmap_binding.pImmutableSamplers = nullptr;
+    cascade_shadowmap_binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo info{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    info.bindingCount = 1;
+    info.pBindings = &cascade_shadowmap_binding;
+
+    VK_CHECK(vkCreateDescriptorSetLayout(m_rhi->m_device, &info, nullptr,
+                                         &m_cascade_shadowmaps_set_layout),
              "Failed to create composite gbuffer desp set layout.");
   }
 }
@@ -502,9 +553,11 @@ void MainCameraPass::CreateVkRenderPipeline() {
                                                       fragShaderStageInfo};
 
     // setup data
-    std::array<VkDescriptorSetLayout, 2> composite_setlayouts;
+    std::array<VkDescriptorSetLayout, 3> composite_setlayouts;
     composite_setlayouts[0] = m_composite_dybuffer_set_layout;
     composite_setlayouts[1] = m_composite_gbuffer_set_layout;
+    composite_setlayouts[2] = m_cascade_shadowmaps_set_layout;
+
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.pSetLayouts = composite_setlayouts.data();
@@ -683,7 +736,7 @@ void MainCameraPass::CreateDesciptorSet() {
     // perframe data writer
     dyset_writers[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     dyset_writers[0].pNext = nullptr;
-    dyset_writers[0].dstSet = m_offscreen_set;
+    dyset_writers[0].dstSet = m_composite_dybuffer_set;
     dyset_writers[0].dstBinding = 0;
     dyset_writers[0].dstArrayElement = 0;
     dyset_writers[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
@@ -708,6 +761,7 @@ void MainCameraPass::CreateDesciptorSet() {
     VkDescriptorImageInfo gPositionInfo{};
     VkDescriptorImageInfo gNormalInfo{};
     VkDescriptorImageInfo gAlbedoInfo{};
+    VkDescriptorImageInfo gDepthInfo{};
     // use same sampler.
     gPositionInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     gPositionInfo.sampler = m_resources->GetGBufferResources().gBufferSampler;
@@ -715,8 +769,11 @@ void MainCameraPass::CreateDesciptorSet() {
     gNormalInfo.sampler = gPositionInfo.sampler;
     gAlbedoInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     gAlbedoInfo.sampler = gPositionInfo.sampler;
+    // note: different layout!!!
+    gDepthInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    gDepthInfo.sampler = m_resources->GetSunResourceObject().shadowmap_sampler;
 
-    std::array<VkWriteDescriptorSet, 3> gbuffer_writes;
+    std::array<VkWriteDescriptorSet, 4> gbuffer_writes;
     // position-ws
     gbuffer_writes[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     gbuffer_writes[0].pNext = nullptr;
@@ -747,24 +804,77 @@ void MainCameraPass::CreateDesciptorSet() {
     gbuffer_writes[2].descriptorCount = 1;
     gbuffer_writes[2].pImageInfo = &gAlbedoInfo;
 
+    // depth
+    gbuffer_writes[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    gbuffer_writes[3].pNext = nullptr;
+    gbuffer_writes[3].dstBinding = 3;
+    gbuffer_writes[3].dstArrayElement = 0;
+    gbuffer_writes[3].descriptorType =
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    gbuffer_writes[3].descriptorCount = 1;
+    gbuffer_writes[3].pImageInfo = &gDepthInfo;
+
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       // position-ws
       gPositionInfo.imageView = m_resources->GetGBufferObject(i).gPositionView;
-      gPositionInfo.sampler = m_resources->GetTerrainSampler();
       gbuffer_writes[0].dstSet = m_composite_gbuffer_sets[i];
 
       // normal-ws
       gNormalInfo.imageView = m_resources->GetGBufferObject(i).gNormalView;
-      gNormalInfo.sampler = m_resources->GetTerrainSampler();
       gbuffer_writes[1].dstSet = m_composite_gbuffer_sets[i];
 
       // albedo
       gAlbedoInfo.imageView = m_resources->GetGBufferObject(i).gColorView;
-      gAlbedoInfo.sampler = m_resources->GetTerrainSampler();
       gbuffer_writes[2].dstSet = m_composite_gbuffer_sets[i];
+
+      // depth
+      gDepthInfo.imageView = m_resources->GetGBufferObject(i).gDepthView;
+      gbuffer_writes[3].dstSet = m_composite_gbuffer_sets[i];
 
       vkUpdateDescriptorSets(m_rhi->m_device, gbuffer_writes.size(),
                              gbuffer_writes.data(), 0, nullptr);
+    }
+  }
+
+  // cascade shadowmap
+  {
+    VkDescriptorSetAllocateInfo info{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+
+    m_cascade_shadowmap_sets.resize(MAX_FRAMES_IN_FLIGHT);
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT,
+                                               m_cascade_shadowmaps_set_layout);
+
+    info.descriptorPool = m_rhi->m_descriptor_pool;
+    info.descriptorSetCount = layouts.size();
+    info.pSetLayouts = layouts.data();
+
+    VK_CHECK(vkAllocateDescriptorSets(m_rhi->m_device, &info,
+                                      m_cascade_shadowmap_sets.data()),
+             "Failed to create cascade shadowmap desp set.");
+
+    VkDescriptorImageInfo cascade_shadowmap_info{};
+    cascade_shadowmap_info.imageLayout =
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+    cascade_shadowmap_info.sampler =
+        m_resources->GetSunResourceObject().shadowmap_sampler;
+
+    VkWriteDescriptorSet cascade_shadowmap_write{};
+    cascade_shadowmap_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    cascade_shadowmap_write.pNext = nullptr;
+    cascade_shadowmap_write.dstBinding = 0;
+    cascade_shadowmap_write.dstArrayElement = 0;
+    cascade_shadowmap_write.descriptorType =
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    cascade_shadowmap_write.descriptorCount = 1;
+    cascade_shadowmap_write.pImageInfo = &cascade_shadowmap_info;
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+      cascade_shadowmap_info.imageView =
+          m_resources->GetSunResourceObject().cascade_shadowmap_views[i];
+      cascade_shadowmap_write.dstSet = m_cascade_shadowmap_sets[i];
+      vkUpdateDescriptorSets(m_rhi->m_device, 1, &cascade_shadowmap_write, 0,
+                             nullptr);
     }
   }
 }

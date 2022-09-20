@@ -64,9 +64,10 @@ void MeshPass::RunPass() {
 
   vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                     m_mesh_pipeline);
+
   u_int32_t cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-  u_int32_t algiment = m_resources->GetPerframeDataObject().min_algiment;
-  u_int32_t dy_offsets = cur_frame_idx * algiment;
+  size_t offset = m_resources->GetPerframeDataObject().GetOffset();
+  u_int32_t dy_offsets = cur_frame_idx * offset;
 
   vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           m_mesh_pipeline_layout, 0, 1, &m_mesh_desp_set, 1,

@@ -9,6 +9,7 @@ layout(location = 2) in vec2 in_texcoord;
 layout(location = 0) out vec4 out_position_ws;
 layout(location = 1) out vec4 out_normal_ws;
 layout(location = 2) out vec4 out_albedo;
+// vec4 out_depth depth write automatically.
 
 void main() {
   out_position_ws = vec4(in_position_ws, 1.0);

@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#include "engine/runtime/framework/ui_manager.hpp"
+
 namespace ShaderStory {
 
 mat4 RenderCamera::GetViewProjectionMatrix() const {
@@ -10,6 +12,10 @@ mat4 RenderCamera::GetViewProjectionMatrix() const {
   mat4 view = lookAt(m_position, m_position + m_forward, m_up);
   return proj * view;
 };
+
+mat4 RenderCamera::GetViewMatrix() const {
+  return lookAt(m_position, m_position + m_forward, m_up);
+}
 
 mat4 RenderCamera::DebugGetViewProjectionMatrix() const {
   mat4 proj = ortho(-200.f, 200.f, -200.f, 200.f, 0.03f, 500.f);
@@ -83,5 +89,18 @@ void CameraComponent::Tick(double delta_time) {
   m_last_cursor_y = cursor_state.y;
   m_is_first_cursor_pos = false;
 }
+
+void CameraComponent::SetUpRenderRenderCameraUI() {
+  g_runtime_global_context.m_ui_manager->AddUIComponent(this);
+}
+
+void CameraComponent::OnDrawUI() const {
+  ImGui::Begin("RenderCamera", &need_draw_ui, ImGuiWindowFlags_MenuBar);
+  ImGui::Text("Position: x: %.3f y: %.3f z: %.3f", m_position.x, m_position.y,
+              m_position.z);
+  ImGui::Text("Foward: x: %.3f y: %.3f z: %.3f", m_forward.x, m_forward.y,
+              m_forward.z);
+  ImGui::End();
+};
 
 }  // namespace ShaderStory

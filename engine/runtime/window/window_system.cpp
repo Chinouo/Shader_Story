@@ -1,5 +1,9 @@
 #include "engine/runtime/window/window_system.hpp"
 
+#include "third_party/glfw/include/GLFW/glfw3.h"
+#include "third_party/imgui/backends/imgui_impl_glfw.h"
+#include "third_party/imgui/imgui.h"
+
 namespace ShaderStory {
 
 void WindowSystem::keyCallback(GLFWwindow* window, int key, int scancode,
@@ -19,7 +23,10 @@ void WindowSystem::cursorPosCallback(GLFWwindow* window, double xpos,
 WindowSystem::WindowSystem(int width, int height)
     : m_width(width), m_height(height) {}
 
-WindowSystem::~WindowSystem() {}
+WindowSystem::~WindowSystem() {
+  ImGui::DestroyContext();
+  ImGui_ImplGlfw_Shutdown();
+}
 
 void WindowSystem::Initialize() {
   ASSERT(glfwInit() && "GLFW init failed.");
@@ -29,8 +36,15 @@ void WindowSystem::Initialize() {
 
   m_wd = glfwCreateWindow(m_width, m_height, "ShaderStory", nullptr, nullptr);
   ASSERT(m_wd && "Falied to create GLFW Window.");
+    
+    glfwSetWindowUserPointer(m_wd, this);
 
-  InstallCallbacks();
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO& io = ImGui::GetIO();
+  (void)io;
+  ImGui::StyleColorsDark();
+  ImGui_ImplGlfw_InitForVulkan(m_wd, true);
 }
 
 void WindowSystem::Destory() {
@@ -45,19 +59,45 @@ bool WindowSystem::ShouldCloseWindow() const {
 GLFWwindow* WindowSystem::GetWindow() const { return m_wd; }
 
 void WindowSystem::InstallCallbacks() {
-  glfwSetWindowUserPointer(m_wd, this);
+  glfwSetInputMode(m_wd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetWindowUserPointer(m_wd, this);
   glfwSetCursorPosCallback(m_wd, WindowSystem::cursorPosCallback);
   glfwSetKeyCallback(m_wd, WindowSystem::keyCallback);
 }
 
 void WindowSystem::UninstallCallbacks() {
+  glfwSetWindowUserPointer(m_wd, nullptr);
   glfwSetCursorPosCallback(m_wd, nullptr);
   glfwSetKeyCallback(m_wd, nullptr);
 }
 
-void WindowSystem::InstallImGuiCallbacks() {}
+void WindowSystem::InstallImGuiCallbacks() {
+    glfwSetInputMode(m_wd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  ImGui_ImplGlfw_InstallCallbacks(m_wd);
+  ImGuiIO& io = ImGui::GetIO();
+  io.ConfigFlags ^= ImGuiConfigFlags_NoMouse;
+}
 
-void WindowSystem::UninstallImGuiCallbacks() {}
+void WindowSystem::UninstallImGuiCallbacks() {
+  ImGui_ImplGlfw_RestoreCallbacks(m_wd);
+  ImGuiIO& io = ImGui::GetIO();
+  io.ConfigFlags |= ImGuiConfigFlags_NoMouse;
+}
+
+void WindowSystem::PerformModeChange(WindowMode target) {
+  if (target == WindowMode::PLAY) {
+    UninstallImGuiCallbacks();
+    InstallCallbacks();
+    mode = WindowMode::PLAY;
+
+  } else if (target == WindowMode::EDIT) {
+    UninstallCallbacks();
+    InstallImGuiCallbacks();
+    mode = WindowMode::EDIT;
+  } else {
+    assert(false);
+  }
+}
 
 void WindowSystem::registerKeyCallback(KeyCallback&& callback) {
   m_key_callbacks.emplace_back(callback);
@@ -68,12 +108,19 @@ void WindowSystem::registerCurPosCallbakc(CursorPosCallback&& callback) {
 }
 
 void WindowSystem::onKey(int key, int scancode, int action, int mods) {
+  if (isEditMode()) return;
+  if (key == GLFW_KEY_ESCAPE) {
+    PerformModeChange(WindowMode::EDIT);
+    return;
+  }
+
   for (const auto& callback : m_key_callbacks) {
     callback(key, scancode, action, mods);
   }
 }
 
 void WindowSystem::onCursorPos(double xpos, double ypos) {
+  if (isEditMode()) return;
   for (const auto& callback : m_cur_callbacks) {
     callback(xpos, ypos);
   }

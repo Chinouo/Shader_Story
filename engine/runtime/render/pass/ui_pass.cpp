@@ -2,8 +2,8 @@
 
 #include <iostream>
 
+#include "engine/runtime/framework/ui_manager.hpp"
 #include "engine/runtime/global/global.hpp"
-#include "engine/runtime/render/render_system.hpp"
 #include "engine/runtime/render/rhi/vulkan/vk_rhi.hpp"
 #include "third_party/imgui/backends/imgui_impl_glfw.h"
 #include "third_party/imgui/backends/imgui_impl_vulkan.h"
@@ -16,8 +16,6 @@ UIPass::UIPass() { std::cout << "UIPass created.\n"; }
 UIPass::~UIPass() {
   std::cout << "UIPass destory.\n";
   ImGui_ImplVulkan_Shutdown();
-  ImGui_ImplGlfw_Shutdown();
-  ImGui::DestroyContext();
 }
 
 void UIPass::Initialize() {
@@ -26,23 +24,9 @@ void UIPass::Initialize() {
 }
 
 void UIPass::RunPass() {
+  g_runtime_global_context.m_ui_manager->RecordUIComponentDrawCommand();
+
   ImGui_ImplVulkan_NewFrame();
-  ImGui_ImplGlfw_NewFrame();
-  ImGui::NewFrame();
-
-  // Insert your ui code here.
-  bool t = true;
-  ImGui::ShowDemoWindow(&t);
-
-  ImGui::Begin("Recreate Test", &t, ImGuiWindowFlags_MenuBar);
-  if (ImGui::Button("Recreate")) {
-    g_runtime_global_context.m_render_sys->AddPostFrameCallback(
-        []() { g_runtime_global_context.m_render_sys->ReloadPipeline(); });
-  }
-
-  ImGui::End();
-
-  ImGui::Render();
 
   ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(),
                                   m_rhi->GetCurrentCommandBuffer());
@@ -52,13 +36,6 @@ void UIPass::RunPass() {
 void UIPass::SetVkPass(VkRenderPass pass) { m_pass = pass; }
 
 void UIPass::InitializeImGUIBackend() {
-  IMGUI_CHECKVERSION();
-  ImGui::CreateContext();
-  ImGuiIO& io = ImGui::GetIO();
-  (void)io;
-  ImGui::StyleColorsDark();
-
-  ImGui_ImplGlfw_InitForVulkan(m_rhi->wd, true);
   ImGui_ImplVulkan_InitInfo init_info = {};
   init_info.Instance = m_rhi->m_instance;
   init_info.PhysicalDevice = m_rhi->m_physical_device;

@@ -22,8 +22,9 @@ void RenderPipeline::Initilaize(
 }
 
 void RenderPipeline::RecordCommands() {
+  sun_pass->RunPass();
   main_camera_pass->RunPass();
-  // sun_pass->RunPass();
+
   // mesh_pass->RunPass();
   ui_pass->RunPass();
 }

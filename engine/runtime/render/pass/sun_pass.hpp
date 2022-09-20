@@ -24,6 +24,11 @@ class SunPass : public RenderPassBase {
   void CreateDesciptorSet();
   void CreateFrameBuffers();
 
+ private:
+  struct PushConstantBlock {
+    u_int32_t cascade_index;
+  } constant_block;
+
   VkRenderPass m_sun_shadowmap_pass{VK_NULL_HANDLE};
 
   VkDescriptorSetLayout m_sun_shadowmap_desp_set_layout{VK_NULL_HANDLE};
