@@ -2,13 +2,14 @@
 #define MATH_HPP
 
 // #define GLM_FORCE_MESSAGES
+#define GLM_FORCE_LEFT_HANDED
 #define GLM_FORCE_CXX17
 #define GLM_FORCE_PURE
+#define GLM_FORCE_SIMD_ **
 #define GLM_FORCE_SWIZZLE
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
-#define GLM_FORCE_SSE2
 #include <array>
 
 #include "third_party/glm/glm/ext.hpp"
@@ -23,8 +24,10 @@ constexpr vec3 X_AXIS = {1.f, 0.f, 0.f};
 constexpr vec3 Y_AXIS = {0.f, 1.f, 0.f};
 constexpr vec3 Z_AXIS = {0.f, 0.f, 1.f};
 
-constexpr vec3 world_up = Z_AXIS;
-constexpr vec3 world_front = Y_AXIS;
+// world coordinates follow vulkan NDC, but for player, their Z-Axis
+// actually is our NDC(Y-Axis).
+constexpr vec3 world_up = Y_AXIS;
+constexpr vec3 world_front = Z_AXIS;
 constexpr vec3 world_right = X_AXIS;
 
 // NDC Cube.

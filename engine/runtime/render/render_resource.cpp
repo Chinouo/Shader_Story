@@ -13,14 +13,13 @@ void RenderResource::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
   CreateDeferedObject();
   CreateSamplers();
   SetUpSunResources();
-  Texture2D big_texture =
-      AssetsManager::LoadTextureFile("assets/flat-RGBA.png");
+  Texture2D big_texture = AssetsManager::LoadTextureFile("assets/sb-RGBA.png");
 
   UploadTerrainTexture(big_texture);
   big_texture.Dispose();
 
   std::vector<StaticMesh> mesh_1 =
-      AssetsManager::LoadObjToStaticMeshes("assets/flat.obj");
+      AssetsManager::LoadObjToStaticMeshes("assets/mine_sb.obj");
 
   for (const auto& mesh : mesh_1) {
     UploadStaticMesh(mesh);
@@ -305,7 +304,7 @@ void RenderResource::CreateSamplers() {
   sampler_create_info.unnormalizedCoordinates = VK_FALSE;
   sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
   shadowmap_sampler_create_info.borderColor =
-      VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+      VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
   VK_CHECK(vkCreateSampler(m_rhi->m_device, &shadowmap_sampler_create_info,
                            nullptr, &sun_resource_object.shadowmap_sampler),
@@ -342,10 +341,6 @@ void RenderResource::SetUpSunResources() {
   image_info.usage =
       VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-  vmaCreateImage(m_rhi->m_vma_allocator, &image_info, &alloc_info,
-                 &sun_resource_object.cascade_shadowmap_image,
-                 &sun_resource_object.cascade_shadowmap_alloc, nullptr);
-
   VkImageViewCreateInfo view_info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
   view_info.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
   view_info.format = required_format;
@@ -353,18 +348,32 @@ void RenderResource::SetUpSunResources() {
   view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
   view_info.subresourceRange.baseMipLevel = 0;
   view_info.subresourceRange.levelCount = 1;
-  view_info.subresourceRange.layerCount = SunResourceObject::SHADOWMAP_CNT;
-  view_info.subresourceRange.baseArrayLayer = 0;
-  view_info.image = sun_resource_object.cascade_shadowmap_image;
 
-  vkCreateImageView(m_rhi->m_device, &view_info, nullptr,
-                    &sun_resource_object.cascade_shadowmap_view);
+  //  view for composite sampler
 
-  for (int i = 0; i < SunResourceObject::SHADOWMAP_CNT; ++i) {
-    view_info.subresourceRange.baseArrayLayer = i;
-    view_info.subresourceRange.layerCount = 1;
-    vkCreateImageView(m_rhi->m_device, &view_info, nullptr,
-                      &sun_resource_object.cascade_shadowmap_views[i]);
+  for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+    vmaCreateImage(m_rhi->m_vma_allocator, &image_info, &alloc_info,
+                   &sun_resource_object.sun_depth[i].cascade_shadowmap_image,
+                   &sun_resource_object.sun_depth[i].cascade_sm_alloc, nullptr);
+
+    view_info.image = sun_resource_object.sun_depth[i].cascade_shadowmap_image;
+    // single view ford depth read
+    view_info.subresourceRange.layerCount = SunResourceObject::SHADOWMAP_CNT;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    vkCreateImageView(
+        m_rhi->m_device, &view_info, nullptr,
+        &sun_resource_object.sun_depth[i].cascade_shadowmap_array_view);
+
+    // multi views for depth write
+    for (int j = 0; j < SunResourceObject::SHADOWMAP_CNT; ++j) {
+      view_info.subresourceRange.baseArrayLayer = j;
+      view_info.subresourceRange.layerCount = 1;
+
+      // view for sun pass depth write.
+      vkCreateImageView(
+          m_rhi->m_device, &view_info, nullptr,
+          &sun_resource_object.sun_depth[i].cascade_shadowmap_views[j]);
+    }
   }
 }
 

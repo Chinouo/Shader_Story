@@ -17,9 +17,8 @@ class RenderCamera {
 
   mat4 GetViewProjectionMatrix() const;
   vec3 GetPosition() const;
-  mat4 GetInversedProjectionMatrix() const {
-    return inverse(GetViewProjectionMatrix());
-  };
+  mat4 GetInverseProjectionViewMatrix() const;
+  mat4 GetInverseProjectionViewMatrixCascadeUseOnly() const;
   mat4 GetViewMatrix() const;
 
   mat4 DebugGetViewProjectionMatrix() const;
@@ -41,10 +40,10 @@ class RenderCamera {
   void ApplyAngle(vec2&);
 
  protected:
-  vec3 m_position{0.f, 0.f, 0.f};
-  vec3 m_forward{0.f, 1.f, 0.f};
-  vec3 m_up{0.f, 0.f, 1.f};
-  vec3 m_right{1.f, 0.f, 0.f};
+  vec3 m_position{0.f, 0.f, 20.f};
+  vec3 m_forward{world_front};
+  vec3 m_up{world_up};
+  vec3 m_right{world_right};
 
   float m_aspect{16.f / 9.f};
   float m_fov{45.f};
@@ -65,10 +64,10 @@ class CameraComponent final : public RenderCamera, public ReflectUIComponent {
 
   void Tick(double delta_time);
   void OnDrawUI() const override;
-    void SetUpRenderRenderCameraUI();
+  void SetUpRenderRenderCameraUI();
 
  private:
-  float m_speed{0.3f};
+  float m_speed{0.03f};
   float m_cursor_sensitive{0.3};
 
   bool m_is_first_cursor_pos{true};

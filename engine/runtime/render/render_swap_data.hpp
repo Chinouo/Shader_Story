@@ -14,6 +14,7 @@ typedef struct {
   mat4 proj_view_matrix;
   mat4 camera_view_matrix;
   mat4 cascade_proj_view_matrices[CASCADE_COUNT];
+  alignas(16) float depth_splits[CASCADE_COUNT];
   alignas(16) vec3 camera_position_ws;
   alignas(16) vec3 sun_ray_direction;
   alignas(16) vec3 sun_position_ws;

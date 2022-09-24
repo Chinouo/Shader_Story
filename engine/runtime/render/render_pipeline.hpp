@@ -4,7 +4,6 @@
 
 #include "engine/common/macros.h"
 #include "engine/runtime/render/pass/main_camera_pass.hpp"
-#include "engine/runtime/render/pass/mesh_pass.hpp"
 #include "engine/runtime/render/pass/sun_pass.hpp"
 #include "engine/runtime/render/pass/ui_pass.hpp"
 #include "engine/runtime/render/render_base.hpp"
@@ -25,7 +24,6 @@ class RenderPipeline final {
 
  private:
   std::unique_ptr<SunPass> sun_pass;
-  std::unique_ptr<MeshPass> mesh_pass;
   std::unique_ptr<UIPass> ui_pass;
   std::unique_ptr<MainCameraPass> main_camera_pass;
 

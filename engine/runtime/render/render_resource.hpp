@@ -106,18 +106,21 @@ struct RenderTerrainTextureObject {
   }
 };
 
+struct SunDepthObject {
+  VkImage cascade_shadowmap_image{VK_NULL_HANDLE};
+  VmaAllocation cascade_sm_alloc{VK_NULL_HANDLE};
+  // composite pass:sampler2DArray
+  VkImageView cascade_shadowmap_array_view{VK_NULL_HANDLE};
+  // sun pass: desp bind to write
+  std::array<VkImageView, 3> cascade_shadowmap_views;
+};
+
 /// Sun (direction light without position)
 struct SunResourceObject {
   static const int SHADOWMAP_RES = 2048;
   static const int SHADOWMAP_CNT = 3;
 
-  VkImage cascade_shadowmap_image{VK_NULL_HANDLE};
-  // for composite read.
-  VkImageView cascade_shadowmap_view{VK_NULL_HANDLE};
-  VmaAllocation cascade_shadowmap_alloc{VK_NULL_HANDLE};
-
-  // for framebuffer write.
-  std::array<VkImageView, 3> cascade_shadowmap_views;
+  std::array<SunDepthObject, MAX_FRAMES_IN_FLIGHT> sun_depth;
 
   VkFormat shadow_map_format{VK_FORMAT_UNDEFINED};
   VkSampler shadowmap_sampler{VK_NULL_HANDLE};
@@ -125,10 +128,10 @@ struct SunResourceObject {
   u_int32_t shadowmap_height;
 
   void Dispose(VmaAllocator allocator, VkDevice device) {
-    vmaDestroyImage(allocator, cascade_shadowmap_image,
-                    cascade_shadowmap_alloc);
-    vkDestroyImageView(device, cascade_shadowmap_view, nullptr);
-    vkDestroySampler(device, shadowmap_sampler, nullptr);
+    // vmaDestroyImage(allocator, cascade_shadowmap_image,
+    //                 cascade_shadowmap_alloc);
+    // vkDestroyImageView(device, cascade_shadowmap_view, nullptr);
+    // vkDestroySampler(device, shadowmap_sampler, nullptr);
   }
 };
 

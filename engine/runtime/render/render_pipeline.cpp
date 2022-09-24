@@ -38,7 +38,7 @@ void RenderPipeline::DestoryPasses() {
   main_camera_pass.reset();
   sun_pass.reset();
   ui_pass.reset();
-  mesh_pass.reset();
+  // mesh_pass.reset();
 }
 
 void RenderPipeline::SetupPasses() {
@@ -48,13 +48,13 @@ void RenderPipeline::SetupPasses() {
 
   sun_pass = std::make_unique<SunPass>();
   ui_pass = std::make_unique<UIPass>();
-  mesh_pass = std::make_unique<MeshPass>();
+  // mesh_pass = std::make_unique<MeshPass>();
 
   sun_pass->PreInitialize({m_rhi, m_resource});
   sun_pass->Initialze();
 
-  mesh_pass->PreInitialize({m_rhi, m_resource});
-  mesh_pass->Initialize();
+  // mesh_pass->PreInitialize({m_rhi, m_resource});
+  // mesh_pass->Initialize();
 
   ui_pass->PreInitialize({m_rhi, m_resource});
   ui_pass->SetVkPass(main_camera_pass->GetVkPass());

@@ -8,10 +8,23 @@ namespace ShaderStory {
 
 mat4 RenderCamera::GetViewProjectionMatrix() const {
   mat4 proj = perspective(m_fov, m_aspect, m_znear, m_zfar);
+  // proj[0][0] *= -1;
   proj[1][1] *= -1;
   mat4 view = lookAt(m_position, m_position + m_forward, m_up);
   return proj * view;
 };
+
+mat4 RenderCamera::GetInverseProjectionViewMatrix() const {
+  return inverse(GetViewProjectionMatrix());
+};
+
+mat4 RenderCamera::GetInverseProjectionViewMatrixCascadeUseOnly() const {
+    mat4 proj = perspective(m_fov, m_aspect, m_znear, m_zfar);
+    proj[1][1] *= -1;
+    mat4 view = lookAt(m_position, m_position + m_forward, m_up);
+  return inverse(proj * view );
+};
+
 
 mat4 RenderCamera::GetViewMatrix() const {
   return lookAt(m_position, m_position + m_forward, m_up);
@@ -41,11 +54,11 @@ void RenderCamera::ApplyAngle(vec2& delta) {
   auto ry = radians(m_yaw);
 
   m_forward.x = -cos(ry) * cos(rp);
-  m_forward.y = sin(ry) * cos(rp);
-  m_forward.z = sin(rp);
+  m_forward.y = sin(rp);
+  m_forward.z = sin(ry) * cos(rp);
 
-  m_right = cross(m_forward, world_up);
-  m_up = cross(m_right, m_forward);
+  m_right = cross(world_up, m_forward);
+  m_up = cross(m_forward, m_right);
 
   m_forward = normalize(m_forward);
   m_right = normalize(m_right);
@@ -100,6 +113,10 @@ void CameraComponent::OnDrawUI() const {
               m_position.z);
   ImGui::Text("Foward: x: %.3f y: %.3f z: %.3f", m_forward.x, m_forward.y,
               m_forward.z);
+  ImGui::Text("Right: x: %.3f y: %.3f z: %.3f", m_right.x, m_right.y,
+              m_right.z);
+  ImGui::Text("Up: x: %.3f y: %.3f z: %.3f", m_up.x, m_up.y, m_up.z);
+
   ImGui::End();
 };
 

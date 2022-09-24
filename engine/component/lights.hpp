@@ -8,6 +8,12 @@
 #include "engine/core/math.hpp"
 namespace ShaderStory {
 
+typedef struct{
+    mat4 cascade_proj_view_matrix;
+    float split_depth;
+}CascadeData;
+
+
 class DirectionLight {
  public:
   virtual ~DirectionLight() = default;
@@ -34,6 +40,8 @@ class PointLight {
   vec3 m_direction;
 };
 
+
+
 class Sun : public DirectionLight, public ReflectUIComponent {
  public:
   Sun();
@@ -50,7 +58,7 @@ class Sun : public DirectionLight, public ReflectUIComponent {
   /// @deprecated
   mat4 GetViewProjMatrixTest(const RenderCamera& camera) const;
 
-  std::array<mat4, 3> GetCascadeViewProjMatrices(
+  std::array<CascadeData, 3> GetCascadeViewProjMatrices(
       const RenderCamera& camera) const;
 
   void SetUpUIComponent();
@@ -61,7 +69,7 @@ class Sun : public DirectionLight, public ReflectUIComponent {
  private:
   mutable bool display_ui{true};
   // static const int cascade_count = 3;
-  std::array<float, 4> m_cascade_distances{0.03f, 24.f, 80.f, 300.f};
+//  std::array<float, 4> m_cascade_distances{0.03f, 24.f, 80.f, 300.f};
 
 };  // namespace ShaderStory
 

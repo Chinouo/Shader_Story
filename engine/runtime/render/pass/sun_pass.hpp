@@ -25,6 +25,11 @@ class SunPass : public RenderPassBase {
   void CreateFrameBuffers();
 
  private:
+ private:
+  struct Cascade {
+    std::array<VkFramebuffer, MAX_FRAMES_IN_FLIGHT> cascade_fbs;
+  };
+
   struct PushConstantBlock {
     u_int32_t cascade_index;
   } constant_block;
@@ -36,7 +41,9 @@ class SunPass : public RenderPassBase {
 
   VkPipelineLayout m_sun_shadowmap_pipeline_layout{VK_NULL_HANDLE};
   VkPipeline m_sun_shadowmap_pipeline{VK_NULL_HANDLE};
-  std::vector<VkFramebuffer> m_framebuffers;
+
+  // one cascade a buffer( 3 cascade * max_frames_in_flight)
+  std::array<Cascade, MAX_FRAMES_IN_FLIGHT> m_cascades;
 };
 
 }  // namespace ShaderStory

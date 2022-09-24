@@ -19,25 +19,19 @@ void WorldManager::Tick(double delta_time) {
 }
 
 void WorldManager::LoadSwapData(SwapData& swap_data) const {
-  auto cascade_view_proj_matrices = sun.GetCascadeViewProjMatrices(m_camera);
-  for (int i = 0; i < cascade_view_proj_matrices.size(); ++i) {
+  auto cascade_data = sun.GetCascadeViewProjMatrices(m_camera);
+  for (int i = 0; i < cascade_data.size(); ++i) {
     swap_data.perframe_data.cascade_proj_view_matrices[i] =
-        cascade_view_proj_matrices[i];
+        cascade_data[i].cascade_proj_view_matrix;
+    swap_data.perframe_data.depth_splits[i] = cascade_data[i].split_depth;
   }
 
   swap_data.perframe_data.camera_view_matrix = m_camera.GetViewMatrix();
-  // DebugPrintMatrix4x4(swap_data.perframe_data.camera_view_matrix);
+
   swap_data.perframe_data.sun_ray_direction = sun.GetDirection();
   swap_data.perframe_data.sun_position_ws = sun.GetPosition();
   swap_data.perframe_data.camera_position_ws = m_camera.GetPosition();
-  // swap_data.perframe_data.proj_view_matrix =
-  //     m_camera.DebugGetViewProjectionMatrix();
+
   swap_data.perframe_data.proj_view_matrix = m_camera.GetViewProjectionMatrix();
-  // swap_data.perframe_data.sun_proj_view_matrix =
-  //     sun.GetViewProjMatrix(m_camera);
-  // swap_data.perframe_data.sun_proj_view_matrix =
-  //     sun.GetViewProjMatrixSphereBounding(m_camera);
-  // swap_data.perframe_data.sun_proj_view_matrix =
-  //     sun.GetViewProjMatrixTest(m_camera);
 }
 }  // namespace ShaderStory

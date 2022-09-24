@@ -870,8 +870,10 @@ void MainCameraPass::CreateDesciptorSet() {
     cascade_shadowmap_write.pImageInfo = &cascade_shadowmap_info;
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      cascade_shadowmap_info.imageView =
-          m_resources->GetSunResourceObject().cascade_shadowmap_views[i];
+      cascade_shadowmap_info.imageView = m_resources->GetSunResourceObject()
+                                             .sun_depth[i]
+                                             .cascade_shadowmap_array_view;
+
       cascade_shadowmap_write.dstSet = m_cascade_shadowmap_sets[i];
       vkUpdateDescriptorSets(m_rhi->m_device, 1, &cascade_shadowmap_write, 0,
                              nullptr);

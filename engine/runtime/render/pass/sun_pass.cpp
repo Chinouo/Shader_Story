@@ -25,8 +25,6 @@ void SunPass::RunPass() {
   VkRenderPassBeginInfo renderPassInfo{};
   renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
   renderPassInfo.renderPass = m_sun_shadowmap_pass;
-  renderPassInfo.framebuffer =
-      m_framebuffers[m_rhi->m_current_swapchain_image_index];
   renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent.width =
       m_resources->GetSunResourceObject().shadowmap_width;
@@ -39,6 +37,8 @@ void SunPass::RunPass() {
   renderPassInfo.pClearValues = clear_vals.data();
 
   for (int i = 0; i < SunResourceObject::SHADOWMAP_CNT; ++i) {
+    renderPassInfo.framebuffer =
+        m_cascades[m_rhi->m_current_swapchain_image_index].cascade_fbs[i];
     vkCmdBeginRenderPass(command_buffer, &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
 
@@ -308,26 +308,29 @@ void SunPass::CreateDesciptorSet() {
 }
 
 void SunPass::CreateFrameBuffers() {
-  m_framebuffers.resize(m_rhi->m_swapchain_images.size());
+  // i frame, j cascasde
+  for (size_t i = 0; i < m_cascades.size(); ++i) {
+    for (size_t j = 0; j < m_cascades[i].cascade_fbs.size(); ++j) {
+      VkImageView attachments[] = {
+          m_resources->GetSunResourceObject()
+              .sun_depth[i]
+              .cascade_shadowmap_views[j],
+      };
 
-  for (size_t i = 0; i < m_framebuffers.size(); ++i) {
-    VkImageView attachments[] = {
-        m_resources->GetSunResourceObject().cascade_shadowmap_views[i],
-    };
+      VkFramebufferCreateInfo framebufferInfo{
+          .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+          .renderPass = m_sun_shadowmap_pass,
+          .attachmentCount = 1,
+          .pAttachments = attachments,
+          .width = m_resources->GetSunResourceObject().shadowmap_width,
+          .height = m_resources->GetSunResourceObject().shadowmap_height,
+          .layers = 1,
+      };
 
-    VkFramebufferCreateInfo framebufferInfo{
-        .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-        .renderPass = m_sun_shadowmap_pass,
-        .attachmentCount = 1,
-        .pAttachments = attachments,
-        .width = m_resources->GetSunResourceObject().shadowmap_width,
-        .height = m_resources->GetSunResourceObject().shadowmap_height,
-        .layers = 1,
-    };
-
-    VK_CHECK(vkCreateFramebuffer(m_rhi->m_device, &framebufferInfo, nullptr,
-                                 &m_framebuffers[i]),
-             "Failed to create framebuffer!");
+      VK_CHECK(vkCreateFramebuffer(m_rhi->m_device, &framebufferInfo, nullptr,
+                                   &m_cascades[i].cascade_fbs[j]),
+               "Failed to create framebuffer!");
+    }
   }
 }
 
