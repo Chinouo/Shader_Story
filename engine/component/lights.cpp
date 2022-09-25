@@ -196,7 +196,11 @@ std::array<CascadeData, 3> Sun::GetCascadeViewProjMatrices(
     float d = cascade_split_lambda * (log - uniform) + uniform;
     cascade_splits[i] = (d - near_clip) / clip_range;
   }
-
+        // hack
+        cascade_splits[0] = 0.08f;
+        cascade_splits[1] = 0.3f;
+        cascade_splits[2] = 1.0f;
+        
   float last_split_distance = 0.f;
 
   for (size_t i = 0; i < cascade_data.size(); ++i) {

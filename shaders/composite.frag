@@ -69,13 +69,14 @@ void initPoissonDiskSamples(const in vec2 randomSeed) {
   }
 }
 
+// wired???
 float PCF_Filter(const in vec2 uv, float z_receiver, float radius,
                  uint cascade_idx) {
   float sum = 0.0;
   for (uint i = 0; i < PCF_SAMPLERS; ++i) {
     float depth =
         texture(cascade_shadowmaps,
-                vec3(uv + poissonDisk[cascade_idx] * radius, cascade_idx))
+                vec3(uv + shadowOffsets[cascade_idx] * radius, cascade_idx))
             .r;
     if (z_receiver < depth) sum += 1.0;
   }
@@ -84,12 +85,13 @@ float PCF_Filter(const in vec2 uv, float z_receiver, float radius,
 }
 
 float findBlocker(const in vec2 uv, const float z_receiver, uint cascade_idx) {
-  float radius = LIGHT_SIZE_UV * (z_receiver - NEAR_PLANE) / z_receiver;
+  // float radius = LIGHT_SIZE_UV * (z_receiver - NEAR_PLANE) / z_receiver;
+  float radius = 1.0 / 2048.0;
   float blocker_depth_sum = 0.0;
   uint blocker_num = 0;
   for (uint i = 0; i < BLOCK_SEARCH_COUNT; ++i) {
     float depth = texture(cascade_shadowmaps,
-                          vec3(uv + poissonDisk[i] * radius, cascade_idx))
+                          vec3(uv + shadowOffsets[i] * radius, cascade_idx))
                       .r;
     if (depth < z_receiver) {
       blocker_depth_sum += depth;
@@ -98,6 +100,22 @@ float findBlocker(const in vec2 uv, const float z_receiver, uint cascade_idx) {
   }
 
   return blocker_num == 0 ? -1.0 : blocker_depth_sum / blocker_num;
+}
+
+float SimplePCF(const in vec2 uv, float z_receiver, const uint cascade_idx) {
+  float sum = 0.0;
+  float scale = 1.0 / 2048.0;
+  for (int i = -1; i <= 1; ++i) {
+    for (int j = -1; j <= 1; ++j) {
+      float depth = texture(cascade_shadowmaps,
+                            vec3(uv + scale * vec2(i, j), cascade_idx))
+                        .r;
+      if (depth > z_receiver - DEPTH_BIAS) {
+        sum += 1.0;
+      }
+    }
+  }
+  return sum / 9.0;
 }
 
 // PCSS, para z_receiver without bias
@@ -115,14 +133,17 @@ float PCSS(const vec2 uv, float z_receiver, const uint cascade_idx) {
   initPoissonDiskSamples(uv);
   // 1. blocker
   float avg_block_depth = findBlocker(uv, z_receiver, cascade_idx);
-  if (avg_block_depth == -1.0) return 1.0;
+  // if (avg_block_depth == -1.0) return 1.0;
 
   // 2. penumbra size
-  float penumbra_ratio = (z_receiver - avg_block_depth) / z_receiver;
-
+  // float penumbra_ratio = (z_receiver - avg_block_depth) / avg_block_depth;
+  float penumbra_sz = (z_receiver - avg_block_depth) / avg_block_depth * 5.0;
   // 3. pcf
-  float pcf_radius = penumbra_ratio * 0.001;
-  return PCF_Filter(uv, z_receiver, pcf_radius, cascade_idx);
+  // float pcf_radius = penumbra_ratio * LIGHT_SIZE_UV * NEAR_PLANE /
+  // z_receiver;
+  float pcf_radius = 1.0 / 2048.0;
+  // return PCF_Filter(uv, z_receiver, pcf_radius, cascade_idx);
+  return SimplePCF(uv, z_receiver, cascade_idx);
 }
 
 void main() {
@@ -170,5 +191,8 @@ void main() {
     mix_color = vec3(0.0, 0.0, 1.0);
   }
 
-  out_color = vec4(frag_albedo.rgb * visibility, 1.0);
+  // visibility = SimplePCF(shadow_coord, frag_pos_ls.z);
+  vec3 color = frag_albedo.rgb * visibility;
+  out_color = vec4(mix(color, mix_color, 0.2), 1.0);
+  // out_color = vec4(frag_albedo.rgb * visibility, 1.0);
 }
