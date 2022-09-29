@@ -7,35 +7,15 @@
 #include "engine/common/macros.h"
 #include "engine/component/camera.hpp"
 #include "engine/runtime/io/assets_manager.hpp"
+#include "engine/runtime/render/render_resources/defered_resource.hpp"
+#include "engine/runtime/render/render_resources/ssao_resource.hpp"
+#include "engine/runtime/render/render_resources/ubo.hpp"
 #include "engine/runtime/render/render_swap_data.hpp"
 #include "engine/runtime/render/rhi/vulkan/vk_rhi.hpp"
 #include "engine/runtime/render/shader_types.hpp"
 #include "third_party/vma/vk_mem_alloc.h"
 
 namespace ShaderStory {
-
-/// perform like a ring buffer.
-struct PerframeDataBufferObject {
-  VkBuffer perframe_data_buffer{VK_NULL_HANDLE};
-  VmaAllocation perframe_data_alloc{VK_NULL_HANDLE};
-  VmaAllocationInfo perframe_data_alloc_info;
-
-  PerframeData perframe_data;
-  void* mapped_memory;
-
-  // spec allowed max aligment of uniform buffer in bytes.
-  u_int32_t min_algiment{256};
-
-  constexpr size_t GetOffset() const {
-    const size_t sz = sizeof(PerframeData);
-    return (min_algiment + sz - 1) & ~(sz - 1);
-  }
-
-  void SetData(const PerframeData& data, int index) {
-    void* dst_with_offset = (char*)mapped_memory + index * GetOffset();
-    memcpy(dst_with_offset, &data, sizeof(PerframeData));
-  };
-};
 
 /// dynamic data, using readonly storage buffer, similar to uniform.
 struct PerframeStorageBufferObject {
@@ -135,33 +115,6 @@ struct SunResourceObject {
   }
 };
 
-// G-Buffer data
-struct GBufferObject {
-  VkImage gPositionImg{VK_NULL_HANDLE};
-  VkImageView gPositionView{VK_NULL_HANDLE};
-  VmaAllocation gPositionAlloc{VK_NULL_HANDLE};
-
-  VkImage gColorImg{VK_NULL_HANDLE};
-  VkImageView gColorView{VK_NULL_HANDLE};
-  VmaAllocation gColorAlloc{VK_NULL_HANDLE};
-
-  VkImage gNormalImg{VK_NULL_HANDLE};
-  VkImageView gNormalView{VK_NULL_HANDLE};
-  VmaAllocation gNormalAlloc{VK_NULL_HANDLE};
-
-  VkImage gDepth{VK_NULL_HANDLE};
-  VkImageView gDepthView{VK_NULL_HANDLE};
-  VmaAllocation gDepthAlloc{VK_NULL_HANDLE};
-};
-
-struct GBufferResources {
-  std::array<GBufferObject, MAX_FRAMES_IN_FLIGHT> gBufferObjects;
-  VkFormat gDepthFmt{VK_FORMAT_UNDEFINED};
-  u_int32_t gDepthWidth{0};
-  u_int32_t gDepthHeight{0};
-  VkSampler gBufferSampler{VK_NULL_HANDLE};
-};
-
 /// manager GPU data...
 /// singleton
 class RenderResource final {
@@ -179,8 +132,16 @@ class RenderResource final {
     return m_mesh_objects;
   }
 
-  const PerframeDataBufferObject& GetPerframeDataObject() const {
-    return perframe_data_obj;
+  const UniformObjectManager& GetPerframeUBOManager() const {
+    return m_perframe_ubo_manager;
+  }
+
+  const SSAOResourceManager& GetSSAOResourceManager() const {
+    return m_ssao_resource_manager;
+  }
+
+  const DeferedResourceManager& GetDeferedResourceManager() const {
+    return m_defered_resource_manager;
   }
 
   const RenderTerrainTextureObject& GetTerrainTextureObject() const {
@@ -189,14 +150,6 @@ class RenderResource final {
 
   const SunResourceObject& GetSunResourceObject() const {
     return sun_resource_object;
-  }
-
-  const GBufferResources& GetGBufferResources() const {
-    return m_g_buffer_resources;
-  }
-
-  const GBufferObject& GetGBufferObject(size_t idx) const {
-    return m_g_buffer_resources.gBufferObjects[idx];
   }
 
   VkSampler GetTerrainSampler() const { return m_sampler; }
@@ -235,7 +188,12 @@ class RenderResource final {
 
  private:
   /// perframe data obj
-  PerframeDataBufferObject perframe_data_obj;
+  UniformObjectManager m_perframe_ubo_manager;
+
+  SSAOResourceManager m_ssao_resource_manager;
+
+  DeferedResourceManager m_defered_resource_manager;
+
   PerframeStorageBufferObject perframe_storage_obj;
   /// store all loaded mesh, data located in GPU.
   std::unordered_map<std::string, RenderStaticMeshObject> m_mesh_objects;
@@ -249,7 +207,7 @@ class RenderResource final {
   /// sun shadowmap resource
   SunResourceObject sun_resource_object;
 
-  GBufferResources m_g_buffer_resources;
+  // GBufferResources m_g_buffer_resources;
 
  private:
   std::shared_ptr<RHI::VKRHI> m_rhi;

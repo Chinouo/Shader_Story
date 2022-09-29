@@ -7,3 +7,19 @@ third_party
 .DS_Store
 
 notes
+
+
+**/CMakeFiles
+**/CMakeScripts
+**/Debug
+**/shader_story.build
+**/shader_story.xcodeproj
+**/Testing
+**/cmake_install.cmake
+**/CMakeCache.txt
+**/CPackConfig.cmake
+**/CPackSourceConfig.cmake
+**/CTestTestfile.cmake
+**/DartConfiguration.tcl
+
+

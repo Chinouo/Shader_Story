@@ -1,8 +1,11 @@
 #include "engine/runtime/render/pass/sun_pass.hpp"
 
+#include <array>
 #include <iostream>
 
+#include "engine/runtime/render/render_resource.hpp"
 #include "engine/runtime/render/rhi/vulkan/vk_utils.hpp"
+
 namespace ShaderStory {
 
 SunPass::SunPass() { std::cout << "create sunpass.\n"; }
@@ -46,7 +49,8 @@ void SunPass::RunPass() {
                       m_sun_shadowmap_pipeline);
 
     u_int32_t cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-    size_t offset = m_resources->GetPerframeDataObject().GetOffset();
+    size_t offset =
+        m_resources->GetPerframeUBOManager().GetPerframeUBODynamicOffset();
     u_int32_t dy_offsets = cur_frame_idx * offset;
 
     PushConstantBlock constant_block{};
@@ -286,21 +290,15 @@ void SunPass::CreateDesciptorSet() {
       "Failed to create desp set.");
 
   // perframe buffer set.
-  VkDescriptorBufferInfo perframe_data_buf_info{};
-  perframe_data_buf_info.offset = 0;
-  perframe_data_buf_info.range = sizeof(PerframeData);
-  perframe_data_buf_info.buffer =
-      m_resources->GetPerframeDataObject().perframe_data_buffer;
+  VkDescriptorBufferInfo perframe_data_buf_info =
+      m_resources->GetPerframeUBOManager().GetDespBufInfo();
 
   std::array<VkWriteDescriptorSet, 1> writers;
   // perframe data writer
-  writers[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writers[0].pNext = nullptr;
+  writers[0] = m_resources->GetPerframeUBOManager().GetDespWrite();
   writers[0].dstSet = m_shadowmap_desp_set;
   writers[0].dstBinding = 0;
   writers[0].dstArrayElement = 0;
-  writers[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
-  writers[0].descriptorCount = 1;
   writers[0].pBufferInfo = &perframe_data_buf_info;
 
   vkUpdateDescriptorSets(m_rhi->m_device, writers.size(), writers.data(), 0,

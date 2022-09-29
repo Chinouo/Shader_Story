@@ -8,9 +8,11 @@
 #include "third_party/vma/vk_mem_alloc.h"
 
 namespace ShaderStory {
+
 class VkUtil {
  public:
   static shaderc::Compiler compiler;
+  static shaderc::CompileOptions compile_op;
 
   static std::vector<u_int32_t> GetSpirvBinary(const std::string& file,
                                                shaderc_shader_kind shader_type);
@@ -28,16 +30,6 @@ class VkUtil {
                            VkMemoryPropertyFlags properties, VkBuffer& buffer,
                            VkDeviceMemory& buffer_memory);
 
-  //   static void CreateImage(VkPhysicalDevice physical_device, VkDevice
-  //   device,
-  //                           uint32_t image_width, uint32_t image_height,
-  //                           VkFormat format, VkImageTiling image_tiling,
-  //                           VkImageUsageFlags image_usage_flags,
-  //                           VkMemoryPropertyFlags memory_property_flags,
-  //                           VkImage& image, VkDeviceMemory& memory,
-  //                           VkImageCreateFlags image_create_flags,
-  //                           uint32_t array_layers, uint32_t miplevels);
-
   static VkImageView CreateImageView(VkDevice device, VkImage& image,
                                      VkFormat format,
                                      VkImageAspectFlags image_aspect_flags,
@@ -47,6 +39,30 @@ class VkUtil {
   static void TransitionImageLayout(VkImage image, VkFormat format,
                                     VkImageLayout old_layout,
                                     VkImageLayout new_layout);
+
+  static void StageUploadBuffer(std::shared_ptr<RHI::VKRHI> rhi, VkBuffer dst,
+                                VkDeviceSize size, const void* data);
+
+  static void StageUploadImage(std::shared_ptr<RHI::VKRHI> rhi, VkImage dst,
+                               u_int32_t width, u_int32_t height,
+                               VkDeviceSize size, uint32_t layer_count,
+                               uint32_t miplevels,
+                               VkImageAspectFlags aspect_mask_bits,
+                               const void* data);
+};
+
+// TODO: imp include
+class SettingIncluder : public shaderc::CompileOptions::IncluderInterface {
+ public:
+  SettingIncluder() = default;
+  ~SettingIncluder() = default;
+
+  shaderc_include_result* GetInclude(const char* requested_source,
+                                     shaderc_include_type type,
+                                     const char* requesting_source,
+                                     size_t include_depth) override;
+
+  void ReleaseInclude(shaderc_include_result* data) override;
 };
 
 }  // namespace ShaderStory

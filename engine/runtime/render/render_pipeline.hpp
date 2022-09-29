@@ -3,10 +3,14 @@
 #include <memory>
 
 #include "engine/common/macros.h"
+#include "engine/runtime/render/pass/composite_pass.hpp"
+#include "engine/runtime/render/pass/defered_pass.hpp"
 #include "engine/runtime/render/pass/main_camera_pass.hpp"
+#include "engine/runtime/render/pass/ssao_pass.hpp"
 #include "engine/runtime/render/pass/sun_pass.hpp"
 #include "engine/runtime/render/pass/ui_pass.hpp"
 #include "engine/runtime/render/render_base.hpp"
+
 namespace ShaderStory {
 
 class RenderPipeline final {
@@ -24,8 +28,11 @@ class RenderPipeline final {
 
  private:
   std::unique_ptr<SunPass> sun_pass;
+  std::unique_ptr<DeferedPass> defered_pass;
+  std::unique_ptr<SSAOPass> ssao_pass;
+  std::unique_ptr<CompositePass> composite_pass;
   std::unique_ptr<UIPass> ui_pass;
-  std::unique_ptr<MainCameraPass> main_camera_pass;
+  // std::unique_ptr<MainCameraPass> main_camera_pass;
 
   void SetupPasses();
   void DestoryPasses();

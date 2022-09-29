@@ -15,11 +15,13 @@ class RenderCamera {
   RenderCamera() = default;
   ~RenderCamera() = default;
 
+  mat4 GetViewMatrix() const;
+  mat4 GetProjMatrix() const;
+
   mat4 GetViewProjectionMatrix() const;
   vec3 GetPosition() const;
   mat4 GetInverseProjectionViewMatrix() const;
   mat4 GetInverseProjectionViewMatrixCascadeUseOnly() const;
-  mat4 GetViewMatrix() const;
 
   mat4 DebugGetViewProjectionMatrix() const;
 

@@ -15,14 +15,18 @@
 #define PI 3.141592653589793
 #define PI2 6.283185307179586
 
-layout(std140, set = 0, binding = 0) uniform PerframeData {
-  mat4 proj_view_matrix;
-  mat4 camera_view_matrix;
-  mat4 cascade_proj_view_matrices[3];
-  vec4 packed_split_depth;  // actually is  float [3]
-  vec3 camera_position_ws;
-  vec3 sun_ray_direction;
-  vec3 sun_position_ws;
+layout(set = 0, binding = 0) uniform PerframeData {
+  mat4 proj_view_mat;
+  mat4 proj_mat;
+  mat4 view_mat;
+  mat4 cascade_proj_view_mats[3];
+  vec4 depth_splits;
+  vec3 camera_pos_ws;
+  // float padding_1;
+  vec3 sun_ray_dir;
+  // float padding_2;
+  vec3 sun_pos_ws;
+  // float padding_3;
 }
 perframe_data;
 
@@ -34,8 +38,11 @@ layout(set = 1, binding = 3) uniform sampler2D GDepth;
 
 layout(set = 2, binding = 0) uniform sampler2DArray cascade_shadowmaps;
 
+// sampler ssao factor,  frag which have great posibility for occlusion has a
+// grearter val.
+layout(set = 3, binding = 0) uniform sampler2D SSAOTex;
+
 layout(location = 0) in vec2 in_uv;
-layout(location = 1) in vec3 color;
 
 layout(location = 0) out vec4 out_color;
 
@@ -147,52 +154,54 @@ float PCSS(const vec2 uv, float z_receiver, const uint cascade_idx) {
 }
 
 void main() {
-  vec3 frag_position_ws = texture(GPositionTex, in_uv).xyz;
+  vec3 frag_position_vs = texture(GPositionTex, in_uv).xyz;
   vec4 frag_albedo = texture(GAlbedoTex, in_uv).rgba;
   vec3 frag_normal = texture(GNormalTex, in_uv).xyz;  // already normalized
 
   // view space
-  vec4 frag_pos_vs =
-      perframe_data.camera_view_matrix * vec4(frag_position_ws, 1.0);
-  vec2 uv_ls = frag_pos_vs.xy * 0.5 + 0.5;
-  float frag_depth = frag_pos_vs.z;
+  // vec4 frag_pos_vs =
+  //     perframe_data.camera_view_matrix * vec4(frag_position_ws, 1.0);
+  // vec2 uv_ls = frag_position_vs.xy * 0.5 + 0.5;
+  // float frag_depth = frag_position_vs.z;
 
-  // unpack split distance.
-  float split_distance[3];
-  split_distance[0] = perframe_data.packed_split_depth.x;
-  split_distance[1] = perframe_data.packed_split_depth.y;
-  split_distance[2] = perframe_data.packed_split_depth.z;
-  // vs: view space.
-  float frag_depth_vs =
-      (perframe_data.camera_view_matrix * vec4(frag_position_ws, 1.0)).z;
+  // // unpack split distance.
+  // float split_distance[3];
+  // split_distance[0] = perframe_data.depth_splits.x;
+  // split_distance[1] = perframe_data.depth_splits.y;
+  // split_distance[2] = perframe_data.depth_splits.z;
+  // // vs: view space.
+  // float frag_depth_vs =
+  //     (perframe_data.camera_view_matrix * vec4(frag_position_ws, 1.0)).z;
 
-  uint cascade_idx = 0;
-  for (uint i = 0; i < 3 - 1; ++i) {
-    if (frag_depth_vs > split_distance[i]) {
-      cascade_idx = i + 1;
-    } else {
-      break;
-    }
-  }
+  // uint cascade_idx = 0;
+  // for (uint i = 0; i < 3 - 1; ++i) {
+  //   if (frag_depth_vs > split_distance[i]) {
+  //     cascade_idx = i + 1;
+  //   } else {
+  //     break;
+  //   }
+  // }
 
-  // shadow calculate
-  vec4 frag_pos_ls = perframe_data.cascade_proj_view_matrices[cascade_idx] *
-                     vec4(frag_position_ws, 1.0);
-  vec2 shadow_coord = frag_pos_ls.st * 0.5 + 0.5;
+  // // shadow calculate
+  // vec4 frag_pos_ls = perframe_data.cascade_proj_view_matrices[cascade_idx] *
+  //                    vec4(frag_position_ws, 1.0);
+  // vec2 shadow_coord = frag_pos_ls.st * 0.5 + 0.5;
 
-  float visibility = PCSS(shadow_coord, frag_pos_ls.z, cascade_idx);
+  // float visibility = PCSS(shadow_coord, frag_pos_ls.z, cascade_idx);
 
-  vec3 mix_color = vec3(1.0, 1.0, 1.0);
-  if (cascade_idx == 0) {
-    mix_color = vec3(1.0, 0.0, 0.0);
-  } else if (cascade_idx == 1) {
-    mix_color = vec3(0.0, 1.0, 0.0);
-  } else if (cascade_idx == 2) {
-    mix_color = vec3(0.0, 0.0, 1.0);
-  }
+  // vec3 mix_color = vec3(1.0, 1.0, 1.0);
+  // if (cascade_idx == 0) {
+  //   mix_color = vec3(1.0, 0.0, 0.0);
+  // } else if (cascade_idx == 1) {
+  //   mix_color = vec3(0.0, 1.0, 0.0);
+  // } else if (cascade_idx == 2) {
+  //   mix_color = vec3(0.0, 0.0, 1.0);
+  // }
 
   // visibility = SimplePCF(shadow_coord, frag_pos_ls.z);
-  vec3 color = frag_albedo.rgb * visibility;
-  out_color = vec4(mix(color, mix_color, 0.2), 1.0);
-  // out_color = vec4(frag_albedo.rgb * visibility, 1.0);
+  // vec3 color = frag_albedo.rgb * visibility;
+  // out_color = vec4(mix(color, mix_color, 0.2), 1.0);
+  float occlusion = texture(SSAOTex, in_uv).r;
+  out_color = vec4(frag_albedo.rgb * (1.0 - occlusion), 1.0);
+  // out_color = vec4(vec3(occlusion), 1.0);
 }

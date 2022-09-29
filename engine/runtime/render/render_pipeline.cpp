@@ -23,9 +23,10 @@ void RenderPipeline::Initilaize(
 
 void RenderPipeline::RecordCommands() {
   sun_pass->RunPass();
-  main_camera_pass->RunPass();
+  defered_pass->RunPass();
+  ssao_pass->RunPass();
+  composite_pass->RunPass();
 
-  // mesh_pass->RunPass();
   ui_pass->RunPass();
 }
 
@@ -35,29 +36,38 @@ void RenderPipeline::RecreatePipeline() {
 }
 
 void RenderPipeline::DestoryPasses() {
-  main_camera_pass.reset();
+  ssao_pass->Dispose();
+  ssao_pass.reset();
+  defered_pass->Dispose();
+  defered_pass.reset();
+  composite_pass->Dispose();
+  composite_pass.reset();
+  sun_pass->Dispose();
   sun_pass.reset();
   ui_pass.reset();
-  // mesh_pass.reset();
 }
 
 void RenderPipeline::SetupPasses() {
-  main_camera_pass = std::make_unique<MainCameraPass>();
-  main_camera_pass->PreInitialize({m_rhi, m_resource});
-  main_camera_pass->Initialze();
+  defered_pass = std::make_unique<DeferedPass>();
+  defered_pass->PreInitialize({m_rhi, m_resource});
+  defered_pass->Initialize();
+
+  ssao_pass = std::make_unique<SSAOPass>();
+  ssao_pass->PreInitialize({m_rhi, m_resource});
+  ssao_pass->Initialize();
+
+  composite_pass = std::make_unique<CompositePass>();
+  composite_pass->PreInitialize({m_rhi, m_resource});
+  composite_pass->Initialize();
 
   sun_pass = std::make_unique<SunPass>();
   ui_pass = std::make_unique<UIPass>();
-  // mesh_pass = std::make_unique<MeshPass>();
 
   sun_pass->PreInitialize({m_rhi, m_resource});
   sun_pass->Initialze();
 
-  // mesh_pass->PreInitialize({m_rhi, m_resource});
-  // mesh_pass->Initialize();
-
   ui_pass->PreInitialize({m_rhi, m_resource});
-  ui_pass->SetVkPass(main_camera_pass->GetVkPass());
+  ui_pass->SetVkPass(composite_pass->GetVkPass());
   ui_pass->Initialize();
 }
 }  // namespace ShaderStory

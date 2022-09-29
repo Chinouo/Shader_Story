@@ -1,9 +1,10 @@
 #ifndef SUN_PASS_HPP
 #define SUN_PASS_HPP
 
+#include <array>
+
 #include "engine/common/macros.h"
 #include "engine/runtime/render/render_base.hpp"
-
 namespace ShaderStory {
 
 /// You can call it DirectionShadow Pass.

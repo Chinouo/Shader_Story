@@ -19,15 +19,20 @@ mat4 RenderCamera::GetInverseProjectionViewMatrix() const {
 };
 
 mat4 RenderCamera::GetInverseProjectionViewMatrixCascadeUseOnly() const {
-    mat4 proj = perspective(m_fov, m_aspect, m_znear, m_zfar);
-    proj[1][1] *= -1;
-    mat4 view = lookAt(m_position, m_position + m_forward, m_up);
-  return inverse(proj * view );
+  mat4 proj = perspective(m_fov, m_aspect, m_znear, m_zfar);
+  proj[1][1] *= -1;
+  mat4 view = lookAt(m_position, m_position + m_forward, m_up);
+  return inverse(proj * view);
 };
-
 
 mat4 RenderCamera::GetViewMatrix() const {
   return lookAt(m_position, m_position + m_forward, m_up);
+}
+
+mat4 RenderCamera::GetProjMatrix() const {
+  mat proj = perspective(m_fov, m_aspect, m_znear, m_zfar);
+  proj[1][1] *= -1;
+  return proj;
 }
 
 mat4 RenderCamera::DebugGetViewProjectionMatrix() const {

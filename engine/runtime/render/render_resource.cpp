@@ -10,7 +10,10 @@ namespace ShaderStory {
 void RenderResource::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
   m_rhi = rhi;
 
-  CreateDeferedObject();
+  m_perframe_ubo_manager.Initialize(rhi);
+  m_ssao_resource_manager.Initialize(rhi);
+  m_defered_resource_manager.Initialize(rhi);
+  // CreateDeferedObject();
   CreateSamplers();
   SetUpSunResources();
   Texture2D big_texture = AssetsManager::LoadTextureFile("assets/sb-RGBA.png");
@@ -25,8 +28,8 @@ void RenderResource::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
     UploadStaticMesh(mesh);
   }
 
-  CreatePerFrameData();
-  CreatePerFrameStorageBuffer();
+  // CreatePerFrameData();
+  // CreatePerFrameStorageBuffer();
 }
 
 void RenderResource::Dispose() {
@@ -35,9 +38,9 @@ void RenderResource::Dispose() {
 
   sun_resource_object.Dispose(allocator, device);
 
-  vmaUnmapMemory(allocator, perframe_data_obj.perframe_data_alloc);
-  vmaDestroyBuffer(allocator, perframe_data_obj.perframe_data_buffer,
-                   perframe_data_obj.perframe_data_alloc);
+  m_perframe_ubo_manager.Destory(m_rhi);
+  m_ssao_resource_manager.Destory(m_rhi);
+  m_defered_resource_manager.Destory(m_rhi);
 
   for (const auto& [k, v] : m_mesh_objects) {
     vmaDestroyBuffer(allocator, v.mesh_vert_buf, v.mesh_vert_alloc);
@@ -53,39 +56,6 @@ void RenderResource::Dispose() {
     vkDestroyImageView(device, m_terrain_texture_object.texture_image_view,
                        nullptr);
   }
-}
-
-void RenderResource::CreatePerFrameData() {
-  VkBufferCreateInfo buf_create_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  buf_create_info.size = perframe_data_obj.GetOffset() * MAX_FRAMES_IN_FLIGHT;
-  buf_create_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-
-  VmaAllocationCreateInfo alloc_create_info{};
-  alloc_create_info.usage = VMA_MEMORY_USAGE_AUTO;
-  alloc_create_info.priority = 1.0f;
-  alloc_create_info.flags =
-      VMA_ALLOCATION_CREATE_MAPPED_BIT |
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT;
-
-  vmaCreateBufferWithAlignment(
-      m_rhi->m_vma_allocator, &buf_create_info, &alloc_create_info,
-      perframe_data_obj.min_algiment, &perframe_data_obj.perframe_data_buffer,
-      &perframe_data_obj.perframe_data_alloc,
-      &perframe_data_obj.perframe_data_alloc_info);
-
-  VkMemoryPropertyFlags memPropFlags;
-  vmaGetAllocationMemoryProperties(m_rhi->m_vma_allocator,
-                                   perframe_data_obj.perframe_data_alloc,
-                                   &memPropFlags);
-
-  ASSERT(memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
-         "Allocate Perframe Uniform Buffer Failed.");
-
-  vmaMapMemory(m_rhi->m_vma_allocator, perframe_data_obj.perframe_data_alloc,
-               &perframe_data_obj.mapped_memory);
-  ASSERT(perframe_data_obj.perframe_data_alloc_info.pMappedData ==
-         perframe_data_obj.mapped_memory);
 }
 
 void RenderResource::UploadStaticMesh(const StaticMesh& mesh) {
@@ -168,9 +138,9 @@ void RenderResource::StagingUpload(VkBuffer dst, VkDeviceSize size,
 
 void RenderResource::UpdatePerFrameData(const SwapData& swap_data) {
   int cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-  const PerframeData& perframe_data = swap_data.perframe_data;
-
-  perframe_data_obj.SetData(perframe_data, cur_frame_idx);
+  const auto& perframe_data = swap_data.perframe_data;
+  m_perframe_ubo_manager.UpdateCurrentFrameData(swap_data.perframe_data,
+                                                cur_frame_idx);
 }
 
 void RenderResource::StagingUploadImage(VkImage dst, u_int32_t width,
@@ -407,211 +377,6 @@ void RenderResource::CreatePerFrameStorageBuffer() {
 
   ASSERT(perframe_storage_obj.alloc_info.pMappedData ==
          perframe_storage_obj.mapped_mem);
-}
-
-void RenderResource::CreateDeferedObject() {
-  auto& g_buffer_objects = m_g_buffer_resources.gBufferObjects;
-  // G-Position
-  {
-    VmaAllocationCreateInfo alloc_info{};
-    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-    alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-    alloc_info.priority = 1.0f;
-
-    VkImageCreateInfo image_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    image_info.arrayLayers = 1;
-    image_info.extent.width = m_rhi->m_swapchain_extent.width;
-    image_info.extent.height = m_rhi->m_swapchain_extent.height;
-    image_info.extent.depth = 1;
-    image_info.mipLevels = 1;
-    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_info.usage =
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    VkImageViewCreateInfo view_info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = image_info.format;
-    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 1;
-    view_info.subresourceRange.baseArrayLayer = 0;
-    view_info.subresourceRange.layerCount = 1;
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      vmaCreateImage(m_rhi->m_vma_allocator, &image_info, &alloc_info,
-                     &g_buffer_objects[i].gPositionImg,
-                     &g_buffer_objects[i].gPositionAlloc, nullptr);
-
-      view_info.image = g_buffer_objects[i].gPositionImg;
-
-      vkCreateImageView(m_rhi->m_device, &view_info, nullptr,
-                        &g_buffer_objects[i].gPositionView);
-    }
-  }
-
-  // G-Normal
-  {
-    VmaAllocationCreateInfo alloc_info{};
-    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-    alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-    alloc_info.priority = 1.0f;
-
-    VkImageCreateInfo image_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    image_info.arrayLayers = 1;
-    image_info.extent.width = m_rhi->m_swapchain_extent.width;
-    image_info.extent.height = m_rhi->m_swapchain_extent.height;
-    image_info.extent.depth = 1;
-    image_info.mipLevels = 1;
-    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_info.usage =
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    VkImageViewCreateInfo view_info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = image_info.format;
-    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 1;
-    view_info.subresourceRange.baseArrayLayer = 0;
-    view_info.subresourceRange.layerCount = 1;
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      vmaCreateImage(m_rhi->m_vma_allocator, &image_info, &alloc_info,
-                     &g_buffer_objects[i].gNormalImg,
-                     &g_buffer_objects[i].gNormalAlloc, nullptr);
-
-      view_info.image = g_buffer_objects[i].gNormalImg;
-
-      vkCreateImageView(m_rhi->m_device, &view_info, nullptr,
-                        &g_buffer_objects[i].gNormalView);
-    }
-  }
-
-  // G-Albedo
-  {
-    VmaAllocationCreateInfo alloc_info{};
-    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-    alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-    alloc_info.priority = 1.0f;
-
-    VkImageCreateInfo image_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.format = VK_FORMAT_R8G8B8A8_UNORM;
-    image_info.arrayLayers = 1;
-    image_info.extent.width = m_rhi->m_swapchain_extent.width;
-    image_info.extent.height = m_rhi->m_swapchain_extent.height;
-    image_info.extent.depth = 1;
-    image_info.mipLevels = 1;
-    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_info.usage =
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    VkImageViewCreateInfo view_info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = image_info.format;
-    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 1;
-    view_info.subresourceRange.baseArrayLayer = 0;
-    view_info.subresourceRange.layerCount = 1;
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      vmaCreateImage(m_rhi->m_vma_allocator, &image_info, &alloc_info,
-                     &g_buffer_objects[i].gColorImg,
-                     &g_buffer_objects[i].gColorAlloc, nullptr);
-
-      view_info.image = g_buffer_objects[i].gColorImg;
-
-      vkCreateImageView(m_rhi->m_device, &view_info, nullptr,
-                        &g_buffer_objects[i].gColorView);
-    }
-  }
-
-  // G-Depth
-  {
-    VkFormat required_format = m_rhi->FindSupportFormat(
-        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
-         VK_FORMAT_D24_UNORM_S8_UINT},
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-
-    m_g_buffer_resources.gDepthFmt = required_format;
-    m_g_buffer_resources.gDepthWidth = m_rhi->m_swapchain_extent.width;
-    m_g_buffer_resources.gDepthHeight = m_rhi->m_swapchain_extent.height;
-
-    VkImageCreateInfo image_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
-    image_info.format = required_format;
-    image_info.imageType = VK_IMAGE_TYPE_2D;
-    image_info.extent.width = m_g_buffer_resources.gDepthWidth;
-    image_info.extent.height = m_g_buffer_resources.gDepthHeight;
-    image_info.extent.depth = 1;
-    image_info.mipLevels = 1;
-    image_info.arrayLayers = 1;
-    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                       VK_IMAGE_USAGE_SAMPLED_BIT;
-    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
-    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    VkImageViewCreateInfo view_info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    view_info.format = image_info.format;
-    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    view_info.subresourceRange.baseMipLevel = 0;
-    view_info.subresourceRange.levelCount = 1;
-    view_info.subresourceRange.baseArrayLayer = 0;
-    view_info.subresourceRange.layerCount = 1;
-
-    VmaAllocationCreateInfo alloc_info{};
-    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-    alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-    alloc_info.priority = 1.0f;
-
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      vmaCreateImage(m_rhi->m_vma_allocator, &image_info, &alloc_info,
-                     &g_buffer_objects[i].gDepth,
-                     &g_buffer_objects[i].gDepthAlloc, nullptr);
-
-      view_info.image = g_buffer_objects[i].gDepth;
-
-      vkCreateImageView(m_rhi->m_device, &view_info, nullptr,
-                        &g_buffer_objects[i].gDepthView);
-    }
-  }
-
-  // g-buffer sampler
-  VkSamplerCreateInfo sampler_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-  sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-  sampler_info.magFilter = VK_FILTER_NEAREST;
-  sampler_info.minFilter = VK_FILTER_NEAREST;
-  sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_info.anisotropyEnable = VK_TRUE;
-  sampler_info.maxAnisotropy = m_rhi->m_pd_property.limits.maxSamplerAnisotropy;
-  sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-  sampler_info.unnormalizedCoordinates = VK_FALSE;
-  sampler_info.compareEnable = VK_FALSE;
-  sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
-  sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-
-  VK_CHECK(vkCreateSampler(m_rhi->m_device, &sampler_info, nullptr,
-                           &m_g_buffer_resources.gBufferSampler),
-           "Create sampler failed.");
 }
 
 }  // namespace ShaderStory
