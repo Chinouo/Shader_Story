@@ -3,7 +3,7 @@ Named-Thread(Render Thread & Logic Thread), Trible Buffers.
 
 ## Still In progress
 
-A lot artifact still in project, try my best to fixing.
+A lot artifact in project, try my best to fixing.
 
 ## Flags
   ✅ PCSS 
@@ -29,6 +29,10 @@ CSM:
 
 SSAO:
 ![SSAO](snapshoot/ssao/ssao.png)
+
+SSR:
+artifact version:
+![SSR](snapshoot/ssr/ssr_artifact.png)
 
 ## Tips
 

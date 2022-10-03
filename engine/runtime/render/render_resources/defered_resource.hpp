@@ -8,7 +8,7 @@
 namespace ShaderStory {
 
 struct GBufferObject {
-  // Define: Position in View Space.
+  // Define: Position in View Space(sampler uv in clip space).
   VkImage gPositionImg{VK_NULL_HANDLE};
   VkImageView gPositionView{VK_NULL_HANDLE};
   VmaAllocation gPositionAlloc{VK_NULL_HANDLE};
@@ -17,7 +17,7 @@ struct GBufferObject {
   VkImageView gColorView{VK_NULL_HANDLE};
   VmaAllocation gColorAlloc{VK_NULL_HANDLE};
 
-  // Define: Normal in View Space.
+  // Define: Normal in View Space(sampler uv in clip space).
   VkImage gNormalImg{VK_NULL_HANDLE};
   VkImageView gNormalView{VK_NULL_HANDLE};
   VmaAllocation gNormalAlloc{VK_NULL_HANDLE};
@@ -25,6 +25,11 @@ struct GBufferObject {
   VkImage gDepth{VK_NULL_HANDLE};
   VkImageView gDepthView{VK_NULL_HANDLE};
   VmaAllocation gDepthAlloc{VK_NULL_HANDLE};
+
+  // Define: pbr data (sampler uv in clip space).
+  VkImage gPBRMaterial{VK_NULL_HANDLE};
+  VkImageView gPBRMaterialView{VK_NULL_HANDLE};
+  VmaAllocation gPBRMaterialAlloc{VK_NULL_HANDLE};
 };
 
 struct GBufferResources {
@@ -55,6 +60,9 @@ class DeferedResourceManager : public RenderResourceBase {
   VkImageView GetAlbedoImageView(int idx) const {
     return m_gb_obj[idx].gColorView;
   }
+  VkImageView GetPBRMaterialView(int idx) const {
+    return m_gb_obj[idx].gPBRMaterialView;
+  }
 
   VkFormat GetDepthFormat() const { return m_g_depth_fmt; }
 
@@ -62,11 +70,13 @@ class DeferedResourceManager : public RenderResourceBase {
   VkDescriptorImageInfo GetPositionDespImageInfo(int idx) const;
   VkDescriptorImageInfo GetNormalDespImageInfo(int idx) const;
   VkDescriptorImageInfo GetAlbedoDespImageInfo(int idx) const;
+  VkDescriptorImageInfo GetPBRMaterialImageInfo(int idx) const;
 
   VkWriteDescriptorSet GetDepthDespWrite() const;
   VkWriteDescriptorSet GetPositionDespWrite() const;
   VkWriteDescriptorSet GetNormalDespWrite() const;
   VkWriteDescriptorSet GetAlbedoDespWrite() const;
+  VkWriteDescriptorSet GetPBRMaterialDespWrite() const;
 
  private:
   VkWriteDescriptorSet GetWrite() const;

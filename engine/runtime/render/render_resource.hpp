@@ -8,6 +8,7 @@
 #include "engine/component/camera.hpp"
 #include "engine/runtime/io/assets_manager.hpp"
 #include "engine/runtime/render/render_resources/defered_resource.hpp"
+#include "engine/runtime/render/render_resources/materials.hpp"
 #include "engine/runtime/render/render_resources/ssao_resource.hpp"
 #include "engine/runtime/render/render_resources/ubo.hpp"
 #include "engine/runtime/render/render_swap_data.hpp"
@@ -144,15 +145,22 @@ class RenderResource final {
     return m_defered_resource_manager;
   }
 
-  const RenderTerrainTextureObject& GetTerrainTextureObject() const {
-    return m_terrain_texture_object;
+  const MaterialManager& GetTerrainMaterialManager() const {
+    return m_terrain_material_manager;
   }
+
+  // const RenderTerrainTextureObject& GetTerrainTextureObject() const {
+  //   return m_terrain_texture_object;
+  // }
 
   const SunResourceObject& GetSunResourceObject() const {
     return sun_resource_object;
   }
 
+  /// @deprecated
   VkSampler GetTerrainSampler() const { return m_sampler; }
+
+  VkSampler GetDefaultNearestSampler() const { return m_neaest_sampler; }
 
  public:
   // update data.
@@ -198,11 +206,15 @@ class RenderResource final {
   /// store all loaded mesh, data located in GPU.
   std::unordered_map<std::string, RenderStaticMeshObject> m_mesh_objects;
 
-  /// loaded terrain texture for sample
-  RenderTerrainTextureObject m_terrain_texture_object;
+  MaterialManager m_terrain_material_manager;
 
   ///  sampler, can use for terrain sampler.
   VkSampler m_sampler{VK_NULL_HANDLE};
+
+  // TODO:
+  /// defalut samplers.
+  VkSampler m_liner_sampler{VK_NULL_HANDLE};
+  VkSampler m_neaest_sampler{VK_NULL_HANDLE};
 
   /// sun shadowmap resource
   SunResourceObject sun_resource_object;

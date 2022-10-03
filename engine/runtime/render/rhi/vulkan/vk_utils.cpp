@@ -115,8 +115,8 @@ void VkUtil::StageUploadBuffer(std::shared_ptr<RHI::VKRHI> rhi, VkBuffer dst,
   vmaDestroyBuffer(rhi->m_vma_allocator, stage_buf, stage_alloc);
 }
 
-void VkUtil::StageUploadImage(std::shared_ptr<RHI::VKRHI> rhi, VkImage dst,
-                              u_int32_t width, u_int32_t height,
+void VkUtil::StageUploadImage(const std::shared_ptr<RHI::VKRHI>& rhi,
+                              VkImage dst, u_int32_t width, u_int32_t height,
                               VkDeviceSize size, uint32_t layer_count,
                               uint32_t miplevels,
                               VkImageAspectFlags aspect_mask_bits,
@@ -153,7 +153,7 @@ void VkUtil::StageUploadImage(std::shared_ptr<RHI::VKRHI> rhi, VkImage dst,
   region.bufferOffset = 0;
   region.bufferRowLength = 0;
   region.bufferImageHeight = 0;
-  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.imageSubresource.aspectMask = aspect_mask_bits;
   region.imageSubresource.mipLevel = miplevels;
   region.imageSubresource.baseArrayLayer = 0;
   region.imageSubresource.layerCount = layer_count;

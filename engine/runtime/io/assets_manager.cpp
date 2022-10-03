@@ -5,9 +5,6 @@
 #include "engine/common/macros.h"
 #include "third_party/tinyobjloader/tiny_obj_loader.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "third_party/stb/stb_image.h"
-
 namespace ShaderStory {
 
 void AssetsManager::LoadObjFile(const std::string& file) {

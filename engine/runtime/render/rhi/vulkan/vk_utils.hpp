@@ -43,8 +43,8 @@ class VkUtil {
   static void StageUploadBuffer(std::shared_ptr<RHI::VKRHI> rhi, VkBuffer dst,
                                 VkDeviceSize size, const void* data);
 
-  static void StageUploadImage(std::shared_ptr<RHI::VKRHI> rhi, VkImage dst,
-                               u_int32_t width, u_int32_t height,
+  static void StageUploadImage(const std::shared_ptr<RHI::VKRHI>& rhi,
+                               VkImage dst, u_int32_t width, u_int32_t height,
                                VkDeviceSize size, uint32_t layer_count,
                                uint32_t miplevels,
                                VkImageAspectFlags aspect_mask_bits,

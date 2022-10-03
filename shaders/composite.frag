@@ -35,6 +35,7 @@ layout(set = 1, binding = 1) uniform sampler2D GNormalTex;
 layout(set = 1, binding = 2) uniform sampler2D GAlbedoTex;
 // camera projected depth, need divide w.
 layout(set = 1, binding = 3) uniform sampler2D GDepth;
+layout(set = 1, binding = 4) uniform sampler2D GPBRMaterial;
 
 layout(set = 2, binding = 0) uniform sampler2DArray cascade_shadowmaps;
 
@@ -201,7 +202,14 @@ void main() {
   // visibility = SimplePCF(shadow_coord, frag_pos_ls.z);
   // vec3 color = frag_albedo.rgb * visibility;
   // out_color = vec4(mix(color, mix_color, 0.2), 1.0);
+
+  float roughness = texture(GPBRMaterial, in_uv).r;
+
   float occlusion = texture(SSAOTex, in_uv).r;
   out_color = vec4(frag_albedo.rgb * (1.0 - occlusion), 1.0);
+  out_color = vec4(frag_albedo.rgba);
+
+  out_color = vec4(vec3(roughness), 1.0);
+
   // out_color = vec4(vec3(occlusion), 1.0);
 }

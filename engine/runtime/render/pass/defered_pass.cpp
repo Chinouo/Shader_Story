@@ -20,11 +20,12 @@ void DeferedPass::RunPass() {
   renderPassInfo.renderArea.offset = {0, 0};
   renderPassInfo.renderArea.extent = m_rhi->m_swapchain_extent;
 
-  std::array<VkClearValue, 4> clear_vals;
+  std::array<VkClearValue, 5> clear_vals;
   clear_vals[0].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
   clear_vals[1].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
   clear_vals[2].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
-  clear_vals[3].depthStencil = {1.f, 0};
+  clear_vals[3].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
+  clear_vals[4].depthStencil = {1.f, 0};
   renderPassInfo.clearValueCount = clear_vals.size();
   renderPassInfo.pClearValues = clear_vals.data();
 
@@ -66,7 +67,7 @@ void DeferedPass::Initialize() {
 void DeferedPass::Dispose() {}
 
 void DeferedPass::CreateVkRenderPass() {
-  std::array<VkAttachmentDescription, 4> attachments;
+  std::array<VkAttachmentDescription, 5> attachments;
   // format is setup in image creation.
   // position
   attachments[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -101,34 +102,48 @@ void DeferedPass::CreateVkRenderPass() {
   attachments[2].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   attachments[2].flags = 0;
 
-  // depth
-  attachments[3].format =
-      m_resources->GetDeferedResourceManager().GetDepthFormat();
+  // pbr material
+  attachments[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
   attachments[3].samples = VK_SAMPLE_COUNT_1_BIT;
   attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
   attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
   attachments[3].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   attachments[3].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
   attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-  attachments[3].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+  attachments[3].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   attachments[3].flags = 0;
 
-  std::array<VkAttachmentReference, 3> color_refs;
-  color_refs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-  color_refs[0].attachment = 0;
-  color_refs[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-  color_refs[1].attachment = 1;
-  color_refs[2].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-  color_refs[2].attachment = 2;
+  // depth
+  attachments[4].format =
+      m_resources->GetDeferedResourceManager().GetDepthFormat();
+  attachments[4].samples = VK_SAMPLE_COUNT_1_BIT;
+  attachments[4].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  attachments[4].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+  attachments[4].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  attachments[4].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  attachments[4].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  attachments[4].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+  attachments[4].flags = 0;
+
+  std::array<VkAttachmentReference, 4> attach_refs;
+  attach_refs[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  attach_refs[0].attachment = 0;
+  attach_refs[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  attach_refs[1].attachment = 1;
+  attach_refs[2].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  attach_refs[2].attachment = 2;
+  // pbr
+  attach_refs[3].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  attach_refs[3].attachment = 3;
 
   VkAttachmentReference depth_ref;
   depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-  depth_ref.attachment = 3;
+  depth_ref.attachment = 4;
 
   VkSubpassDescription subpass{};
   subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-  subpass.colorAttachmentCount = color_refs.size();
-  subpass.pColorAttachments = color_refs.data();
+  subpass.colorAttachmentCount = attach_refs.size();
+  subpass.pColorAttachments = attach_refs.data();
   subpass.inputAttachmentCount = 0;
   subpass.pDepthStencilAttachment = &depth_ref;
 
@@ -188,7 +203,7 @@ void DeferedPass::CreateVkRenderPass() {
 }
 
 void DeferedPass::CreateDesciptorSetLayout() {
-  std::array<VkDescriptorSetLayoutBinding, 2> bindings;
+  std::array<VkDescriptorSetLayoutBinding, 4> bindings;
   // perframe data bindings.
   bindings[0].binding = 0;
   bindings[0].descriptorCount = 1;
@@ -201,6 +216,20 @@ void DeferedPass::CreateDesciptorSetLayout() {
   bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
   bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
   bindings[1].pImmutableSamplers = nullptr;
+
+  // terrain-normal_map
+  bindings[2].binding = 2;
+  bindings[2].descriptorCount = 1;
+  bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  bindings[2].pImmutableSamplers = nullptr;
+
+  // terrain-pbr-materials
+  bindings[3].binding = 3;
+  bindings[3].descriptorCount = 1;
+  bindings[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+  bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+  bindings[3].pImmutableSamplers = nullptr;
 
   VkDescriptorSetLayoutCreateInfo info{
       VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
@@ -305,8 +334,8 @@ void DeferedPass::CreateVkRenderPipeline() {
   multisampling.sampleShadingEnable = VK_FALSE;
   multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-  // we have 3 color attachments.
-  std::array<VkPipelineColorBlendAttachmentState, 3> blend_attachment_states;
+  // we have 4 color attachments
+  std::array<VkPipelineColorBlendAttachmentState, 4> blend_attachment_states;
 
   VkPipelineColorBlendAttachmentState colorBlendAttachment{};
   colorBlendAttachment.colorWriteMask =
@@ -360,18 +389,26 @@ void DeferedPass::CreateDesciptorSet() {
   VK_CHECK(vkAllocateDescriptorSets(m_rhi->m_device, &info, &m_offscreen_set),
            "Failed to create desp set.");
 
-  // perframe buffer set.
+  // perframe buffer set. (0)
   VkDescriptorBufferInfo perframe_data_buf_info =
       m_resources->GetPerframeUBOManager().GetDespBufInfo();
 
-  // mesh texture set
-  VkDescriptorImageInfo terrain_texture_info{};
-  terrain_texture_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-  terrain_texture_info.imageView =
-      m_resources->GetTerrainTextureObject().texture_image_view;
+  // mesh texture set (1)
+  VkDescriptorImageInfo terrain_texture_info =
+      m_resources->GetTerrainMaterialManager().GetAlbedoDespImageInfo();
   terrain_texture_info.sampler = m_resources->GetTerrainSampler();
 
-  std::array<VkWriteDescriptorSet, 2> writers;
+  // terrain normalmap (2)
+  VkDescriptorImageInfo terrain_normalmap_info =
+      m_resources->GetTerrainMaterialManager().GetNormalMapDespImageInfo();
+  terrain_normalmap_info.sampler = m_resources->GetDefaultNearestSampler();
+
+  // terrain pbr (3)
+  VkDescriptorImageInfo pbr_material_info =
+      m_resources->GetTerrainMaterialManager().GetMaterialDespImageInfo();
+  pbr_material_info.sampler = m_resources->GetDefaultNearestSampler();
+
+  std::array<VkWriteDescriptorSet, 4> writers;
   // perframe data writer
   writers[0] = m_resources->GetPerframeUBOManager().GetDespWrite();
   writers[0].dstSet = m_offscreen_set;
@@ -379,14 +416,23 @@ void DeferedPass::CreateDesciptorSet() {
   writers[0].pBufferInfo = &perframe_data_buf_info;
 
   // terrain writer
-  writers[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-  writers[1].pNext = nullptr;
+  writers[1] = m_resources->GetTerrainMaterialManager().GetMaterialDespWrite();
   writers[1].dstSet = m_offscreen_set;
   writers[1].dstBinding = 1;
-  writers[1].dstArrayElement = 0;
-  writers[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-  writers[1].descriptorCount = 1;
   writers[1].pImageInfo = &terrain_texture_info;
+
+  // terrain normalmap
+  writers[2] =
+      m_resources->GetTerrainMaterialManager().GetNormalMapImageWrite();
+  writers[2].dstSet = m_offscreen_set;
+  writers[2].dstBinding = 2;
+  writers[2].pImageInfo = &terrain_normalmap_info;
+
+  // terrain pbr material
+  writers[3] = m_resources->GetTerrainMaterialManager().GetMaterialDespWrite();
+  writers[3].dstSet = m_offscreen_set;
+  writers[3].dstBinding = 3;
+  writers[3].pImageInfo = &pbr_material_info;
 
   vkUpdateDescriptorSets(m_rhi->m_device, writers.size(), writers.data(), 0,
                          nullptr);
@@ -403,11 +449,12 @@ void DeferedPass::CreateFrameBuffers() {
 
   const auto& gbuffer = m_resources->GetDeferedResourceManager();
   for (int i = 0; i < m_offscreen_framebuffers.size(); ++i) {
-    std::array<VkImageView, 4> attachments;
+    std::array<VkImageView, 5> attachments;
     attachments[0] = gbuffer.GetPositionImageView(i);
     attachments[1] = gbuffer.GetNormalImageView(i);
     attachments[2] = gbuffer.GetAlbedoImageView(i);
-    attachments[3] = gbuffer.GetDepthImageView(i);
+    attachments[3] = gbuffer.GetPBRMaterialView(i);
+    attachments[4] = gbuffer.GetDepthImageView(i);
 
     fbf_info.attachmentCount = attachments.size();
     fbf_info.pAttachments = attachments.data();

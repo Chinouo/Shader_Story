@@ -128,7 +128,7 @@ void CompositePass::CreateDesciptorSetLayout() {
                                          &m_composite_dybuffer_set_layout),
              "Failed to create offscreen desp set layout.");
 
-    std::array<VkDescriptorSetLayoutBinding, 4> gbuffer_bindings;
+    std::array<VkDescriptorSetLayoutBinding, 5> gbuffer_bindings;
     // g-position.
     gbuffer_bindings[0].binding = 0;
     gbuffer_bindings[0].descriptorCount = 1;
@@ -160,6 +160,13 @@ void CompositePass::CreateDesciptorSetLayout() {
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     gbuffer_bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     gbuffer_bindings[3].pImmutableSamplers = nullptr;
+
+    gbuffer_bindings[4].binding = 4;
+    gbuffer_bindings[4].descriptorCount = 1;
+    gbuffer_bindings[4].descriptorType =
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    gbuffer_bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    gbuffer_bindings[4].pImmutableSamplers = nullptr;
 
     info.bindingCount = gbuffer_bindings.size();
     info.pBindings = gbuffer_bindings.data();
@@ -397,7 +404,7 @@ void CompositePass::CreateDesciptorSet() {
     // gDepthInfo.sampler =
     // m_resources->GetSunResourceObject().shadowmap_sampler;
 
-    std::array<VkWriteDescriptorSet, 4> gbuffer_writes;
+    std::array<VkWriteDescriptorSet, 5> gbuffer_writes;
     // position-ws
     gbuffer_writes[0] = gbuffer.GetPositionDespWrite();
     gbuffer_writes[0].dstBinding = 0;
@@ -414,15 +421,23 @@ void CompositePass::CreateDesciptorSet() {
     gbuffer_writes[3] = gbuffer.GetDepthDespWrite();
     gbuffer_writes[3].dstBinding = 3;
 
+    // pbr-material
+    gbuffer_writes[4] = gbuffer.GetPBRMaterialDespWrite();
+    gbuffer_writes[4].dstBinding = 4;
+
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       VkDescriptorImageInfo gPositionInfo = gbuffer.GetPositionDespImageInfo(i);
       VkDescriptorImageInfo gNormalInfo = gbuffer.GetNormalDespImageInfo(i);
       VkDescriptorImageInfo gAlbedoInfo = gbuffer.GetAlbedoDespImageInfo(i);
       VkDescriptorImageInfo gDepthInfo = gbuffer.GetDepthDespImageInfo(i);
+      VkDescriptorImageInfo gPBRMaterialInfo =
+          gbuffer.GetPBRMaterialImageInfo(i);
+
       gbuffer_writes[0].pImageInfo = &gPositionInfo;
       gbuffer_writes[1].pImageInfo = &gNormalInfo;
       gbuffer_writes[2].pImageInfo = &gAlbedoInfo;
       gbuffer_writes[3].pImageInfo = &gDepthInfo;
+      gbuffer_writes[4].pImageInfo = &gPBRMaterialInfo;
       // position-ws
       gbuffer_writes[0].dstSet = m_composite_gbuffer_sets[i];
 
@@ -434,6 +449,9 @@ void CompositePass::CreateDesciptorSet() {
 
       // depth
       gbuffer_writes[3].dstSet = m_composite_gbuffer_sets[i];
+
+      // pbr material
+      gbuffer_writes[4].dstSet = m_composite_gbuffer_sets[i];
 
       vkUpdateDescriptorSets(m_rhi->m_device, gbuffer_writes.size(),
                              gbuffer_writes.data(), 0, nullptr);

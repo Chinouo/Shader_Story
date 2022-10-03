@@ -186,14 +186,57 @@ void DeferedResourceManager::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
     }
   }
 
+  // G-PBRMaterial
+  {
+    VmaAllocationCreateInfo alloc_info{};
+    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+    alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    alloc_info.priority = 1.0f;
+
+    VkImageCreateInfo image_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    image_info.imageType = VK_IMAGE_TYPE_2D;
+    image_info.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    image_info.arrayLayers = 1;
+    image_info.extent.width = rhi->m_swapchain_extent.width;
+    image_info.extent.height = rhi->m_swapchain_extent.height;
+    image_info.extent.depth = 1;
+    image_info.mipLevels = 1;
+    image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+    image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+    image_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    image_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    image_info.usage =
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    VkImageViewCreateInfo view_info{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+    view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view_info.format = image_info.format;
+    view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    view_info.subresourceRange.baseMipLevel = 0;
+    view_info.subresourceRange.levelCount = 1;
+    view_info.subresourceRange.baseArrayLayer = 0;
+    view_info.subresourceRange.layerCount = 1;
+
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+      vmaCreateImage(rhi->m_vma_allocator, &image_info, &alloc_info,
+                     &g_buffer_objects[i].gPBRMaterial,
+                     &g_buffer_objects[i].gPBRMaterialAlloc, nullptr);
+
+      view_info.image = g_buffer_objects[i].gPBRMaterial;
+
+      vkCreateImageView(rhi->m_device, &view_info, nullptr,
+                        &g_buffer_objects[i].gPBRMaterialView);
+    }
+  }
+
   // g-buffer sampler
   VkSamplerCreateInfo sampler_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
   sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
   sampler_info.magFilter = VK_FILTER_NEAREST;
   sampler_info.minFilter = VK_FILTER_NEAREST;
-  sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+  sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
   sampler_info.anisotropyEnable = VK_TRUE;
   sampler_info.maxAnisotropy = rhi->m_pd_property.limits.maxSamplerAnisotropy;
   sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -223,6 +266,10 @@ void DeferedResourceManager::Destory(std::shared_ptr<RHI::VKRHI> rhi) {
 
     vmaDestroyImage(allocator, m_gb_obj[i].gDepth, m_gb_obj[i].gDepthAlloc);
     vkDestroyImageView(device, m_gb_obj[i].gDepthView, nullptr);
+
+    vmaDestroyImage(allocator, m_gb_obj[i].gPBRMaterial,
+                    m_gb_obj[i].gPBRMaterialAlloc);
+    vkDestroyImageView(device, m_gb_obj[i].gPBRMaterialView, nullptr);
   }
 
   vkDestroySampler(device, m_g_sampler, nullptr);
@@ -264,6 +311,15 @@ VkDescriptorImageInfo DeferedResourceManager::GetAlbedoDespImageInfo(
   return info;
 }
 
+VkDescriptorImageInfo DeferedResourceManager::GetPBRMaterialImageInfo(
+    int idx) const {
+  VkDescriptorImageInfo info{};
+  info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  info.sampler = m_g_sampler;
+  info.imageView = m_gb_obj[idx].gPBRMaterialView;
+  return info;
+}
+
 VkWriteDescriptorSet DeferedResourceManager::GetWrite() const {
   VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
   write.pNext = nullptr;
@@ -286,6 +342,10 @@ VkWriteDescriptorSet DeferedResourceManager::GetNormalDespWrite() const {
 }
 
 VkWriteDescriptorSet DeferedResourceManager::GetAlbedoDespWrite() const {
+  return GetWrite();
+}
+
+VkWriteDescriptorSet DeferedResourceManager::GetPBRMaterialDespWrite() const {
   return GetWrite();
 }
 

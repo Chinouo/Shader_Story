@@ -13,16 +13,18 @@ void RenderResource::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
   m_perframe_ubo_manager.Initialize(rhi);
   m_ssao_resource_manager.Initialize(rhi);
   m_defered_resource_manager.Initialize(rhi);
+  m_terrain_material_manager.Initialize(rhi);
   // CreateDeferedObject();
   CreateSamplers();
   SetUpSunResources();
-  Texture2D big_texture = AssetsManager::LoadTextureFile("assets/sb-RGBA.png");
+  //   Texture2D big_texture =
+  //   AssetsManager::LoadTextureFile("assets/sb-RGBA.png");
 
-  UploadTerrainTexture(big_texture);
-  big_texture.Dispose();
+  //   UploadTerrainTexture(big_texture);
+  //   big_texture.Dispose();
 
   std::vector<StaticMesh> mesh_1 =
-      AssetsManager::LoadObjToStaticMeshes("assets/mine_sb.obj");
+      AssetsManager::LoadObjToStaticMeshes("assets/o.obj");
 
   for (const auto& mesh : mesh_1) {
     UploadStaticMesh(mesh);
@@ -41,20 +43,16 @@ void RenderResource::Dispose() {
   m_perframe_ubo_manager.Destory(m_rhi);
   m_ssao_resource_manager.Destory(m_rhi);
   m_defered_resource_manager.Destory(m_rhi);
+  m_terrain_material_manager.Destory(m_rhi);
 
   for (const auto& [k, v] : m_mesh_objects) {
     vmaDestroyBuffer(allocator, v.mesh_vert_buf, v.mesh_vert_alloc);
     vmaDestroyBuffer(allocator, v.mesh_indices_buf, v.mesh_indices_alloc);
   }
 
-  { vkDestroySampler(device, m_sampler, nullptr); }
-
-  // free terrain texture
   {
-    vmaDestroyImage(allocator, m_terrain_texture_object.texture_image,
-                    m_terrain_texture_object.texture_alloc);
-    vkDestroyImageView(device, m_terrain_texture_object.texture_image_view,
-                       nullptr);
+    vkDestroySampler(device, m_sampler, nullptr);
+    vkDestroySampler(device, m_neaest_sampler, nullptr);
   }
 }
 
@@ -143,93 +141,94 @@ void RenderResource::UpdatePerFrameData(const SwapData& swap_data) {
                                                 cur_frame_idx);
 }
 
-void RenderResource::StagingUploadImage(VkImage dst, u_int32_t width,
-                                        u_int32_t height, VkDeviceSize size,
-                                        uint32_t layer_count,
-                                        uint32_t miplevels,
-                                        VkImageAspectFlags aspect_mask_bits,
-                                        const void* data) {
-  // copy image data to buffer.
-  VkBuffer stage_buf{VK_NULL_HANDLE};
-  VkBufferCreateInfo stage_buffer_create_info{
-      VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  stage_buffer_create_info.size = size;
-  stage_buffer_create_info.usage =
-      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-  VmaAllocationCreateInfo stage_create_info{};
-  stage_create_info.usage = VMA_MEMORY_USAGE_AUTO;
-  stage_create_info.flags =
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-      VMA_ALLOCATION_CREATE_MAPPED_BIT;
-  VmaAllocation stage_alloc;
-  VmaAllocationInfo stage_alloc_info;
-  vmaCreateBuffer(m_rhi->m_vma_allocator, &stage_buffer_create_info,
-                  &stage_create_info, &stage_buf, &stage_alloc,
-                  &stage_alloc_info);
+// void RenderResource::StagingUploadImage(VkImage dst, u_int32_t width,
+//                                         u_int32_t height, VkDeviceSize size,
+//                                         uint32_t layer_count,
+//                                         uint32_t miplevels,
+//                                         VkImageAspectFlags aspect_mask_bits,
+//                                         const void* data) {
+//   // copy image data to buffer.
+//   VkBuffer stage_buf{VK_NULL_HANDLE};
+//   VkBufferCreateInfo stage_buffer_create_info{
+//       VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+//   stage_buffer_create_info.size = size;
+//   stage_buffer_create_info.usage =
+//       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+//   VmaAllocationCreateInfo stage_create_info{};
+//   stage_create_info.usage = VMA_MEMORY_USAGE_AUTO;
+//   stage_create_info.flags =
+//       VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+//       VMA_ALLOCATION_CREATE_MAPPED_BIT;
+//   VmaAllocation stage_alloc;
+//   VmaAllocationInfo stage_alloc_info;
+//   vmaCreateBuffer(m_rhi->m_vma_allocator, &stage_buffer_create_info,
+//                   &stage_create_info, &stage_buf, &stage_alloc,
+//                   &stage_alloc_info);
 
-  memcpy(stage_alloc_info.pMappedData, data, stage_buffer_create_info.size);
+//   memcpy(stage_alloc_info.pMappedData, data, stage_buffer_create_info.size);
 
-  // transition image layout for cope.
-  // transit for copy
-  m_rhi->TransitImageLayout(dst, VK_IMAGE_LAYOUT_UNDEFINED,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layer_count,
-                            miplevels, aspect_mask_bits);
+//   // transition image layout for cope.
+//   // transit for copy
+//   m_rhi->TransitImageLayout(dst, VK_IMAGE_LAYOUT_UNDEFINED,
+//                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+//                             layer_count, miplevels, aspect_mask_bits);
 
-  VkCommandBuffer command_buffer = m_rhi->BeginSingleTimeCommands();
+//   VkCommandBuffer command_buffer = m_rhi->BeginSingleTimeCommands();
 
-  VkBufferImageCopy region{};
-  region.bufferOffset = 0;
-  region.bufferRowLength = 0;
-  region.bufferImageHeight = 0;
-  region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  region.imageSubresource.mipLevel = miplevels;
-  region.imageSubresource.baseArrayLayer = 0;
-  region.imageSubresource.layerCount = layer_count;
-  region.imageOffset = {0, 0, 0};
-  region.imageExtent = {width, height, 1};
-  vkCmdCopyBufferToImage(command_buffer, stage_buf, dst,
-                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+//   VkBufferImageCopy region{};
+//   region.bufferOffset = 0;
+//   region.bufferRowLength = 0;
+//   region.bufferImageHeight = 0;
+//   region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+//   region.imageSubresource.mipLevel = miplevels;
+//   region.imageSubresource.baseArrayLayer = 0;
+//   region.imageSubresource.layerCount = layer_count;
+//   region.imageOffset = {0, 0, 0};
+//   region.imageExtent = {width, height, 1};
+//   vkCmdCopyBufferToImage(command_buffer, stage_buf, dst,
+//                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-  m_rhi->EndSingleTimeCommands(command_buffer);
-  // transit for sampling.
-  m_rhi->TransitImageLayout(dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                            layer_count, miplevels, aspect_mask_bits);
+//   m_rhi->EndSingleTimeCommands(command_buffer);
+//   // transit for sampling.
+//   m_rhi->TransitImageLayout(dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+//                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+//                             layer_count, miplevels, aspect_mask_bits);
 
-  // destory stage buffer.
-  vmaDestroyBuffer(m_rhi->m_vma_allocator, stage_buf, stage_alloc);
-}
+//   // destory stage buffer.
+//   vmaDestroyBuffer(m_rhi->m_vma_allocator, stage_buf, stage_alloc);
+// }
 
-void RenderResource::UploadTerrainTexture(Texture2D& info) {
-  RenderTerrainTextureObject& object = m_terrain_texture_object;
-  VmaAllocationCreateInfo alloc_info{};
-  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-  alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-  alloc_info.priority = 1.0f;
+// void RenderResource::UploadTerrainTexture(Texture2D& info) {
+//   RenderTerrainTextureObject& object = m_terrain_texture_object;
+//   VmaAllocationCreateInfo alloc_info{};
+//   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
+//   alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+//   alloc_info.priority = 1.0f;
 
-  VkImageCreateInfo image_create_info = info.GetDefaultImageCreateInfo();
-  image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+//   VkImageCreateInfo image_create_info = info.GetDefaultImageCreateInfo();
+//   image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-  vmaCreateImage(m_rhi->m_vma_allocator, &image_create_info, &alloc_info,
-                 &object.texture_image, &object.texture_alloc, nullptr);
+//   vmaCreateImage(m_rhi->m_vma_allocator, &image_create_info, &alloc_info,
+//                  &object.texture_image, &object.texture_alloc, nullptr);
 
-  VkImageViewCreateInfo view_create_info{
-      VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-  view_create_info.image = object.texture_image;
-  view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-  view_create_info.format = VK_FORMAT_R8G8B8A8_SRGB;
-  view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-  view_create_info.subresourceRange.baseMipLevel = 0;
-  view_create_info.subresourceRange.levelCount = 1;
-  view_create_info.subresourceRange.baseArrayLayer = 0;
-  view_create_info.subresourceRange.layerCount = 1;
+//   VkImageViewCreateInfo view_create_info{
+//       VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
+//   view_create_info.image = object.texture_image;
+//   view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+//   view_create_info.format = VK_FORMAT_R8G8B8A8_SRGB;
+//   view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+//   view_create_info.subresourceRange.baseMipLevel = 0;
+//   view_create_info.subresourceRange.levelCount = 1;
+//   view_create_info.subresourceRange.baseArrayLayer = 0;
+//   view_create_info.subresourceRange.layerCount = 1;
 
-  vkCreateImageView(m_rhi->m_device, &view_create_info, nullptr,
-                    &object.texture_image_view);
+//   vkCreateImageView(m_rhi->m_device, &view_create_info, nullptr,
+//                     &object.texture_image_view);
 
-  StagingUploadImage(object.texture_image, info.width, info.height, info.size,
-                     1, 0, VK_IMAGE_ASPECT_COLOR_BIT, info.data);
-}
+//   StagingUploadImage(object.texture_image, info.width, info.height,
+//   info.size,
+//                      1, 0, VK_IMAGE_ASPECT_COLOR_BIT, info.data);
+// }
 
 void RenderResource::CreateSamplers() {
   // texture sampler
@@ -279,6 +278,27 @@ void RenderResource::CreateSamplers() {
   VK_CHECK(vkCreateSampler(m_rhi->m_device, &shadowmap_sampler_create_info,
                            nullptr, &sun_resource_object.shadowmap_sampler),
            "Create shadowmap sampler failed.");
+
+  // nearest sampler
+  VkSamplerCreateInfo nearest_sampler_info{
+      VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
+  nearest_sampler_info.magFilter = VK_FILTER_NEAREST;
+  nearest_sampler_info.minFilter = VK_FILTER_NEAREST;
+  nearest_sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+  nearest_sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  nearest_sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  nearest_sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+  nearest_sampler_info.mipLodBias = 0.0f;
+  nearest_sampler_info.maxAnisotropy = 1.0f;
+  nearest_sampler_info.minLod = 0.0f;
+  nearest_sampler_info.maxLod = 1.0f;
+  nearest_sampler_info.anisotropyEnable = VK_FALSE;
+  nearest_sampler_info.unnormalizedCoordinates = VK_FALSE;
+  nearest_sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+
+  VK_CHECK(vkCreateSampler(m_rhi->m_device, &nearest_sampler_info, nullptr,
+                           &m_neaest_sampler),
+           "Create shadowmap nearest failed.");
 }
 
 void RenderResource::SetUpSunResources() {
