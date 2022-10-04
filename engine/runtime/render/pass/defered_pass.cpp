@@ -21,10 +21,10 @@ void DeferedPass::RunPass() {
   renderPassInfo.renderArea.extent = m_rhi->m_swapchain_extent;
 
   std::array<VkClearValue, 5> clear_vals;
-  clear_vals[0].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
-  clear_vals[1].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
-  clear_vals[2].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
-  clear_vals[3].color = {{1.0f, 0.0f, 1.0f, 1.0f}};
+  clear_vals[0].color = {{1.0f, 0.0f, 1.0f, 1.0f}};  // pos
+  clear_vals[1].color = {{0.0f, 0.0f, 0.0f, 1.0f}};  // normal
+  clear_vals[2].color = {{1.0f, 0.0f, 1.0f, 1.0f}};  // albedo
+  clear_vals[3].color = {{1.0f, 0.0f, 1.0f, 1.0f}};  // materia;
   clear_vals[4].depthStencil = {1.f, 0};
   renderPassInfo.clearValueCount = clear_vals.size();
   renderPassInfo.pClearValues = clear_vals.data();

@@ -16,13 +16,14 @@ layout(set = 0, binding = 0) uniform PerframeData {
 perframe_data;
 
 layout(location = 0) in vec3 in_position_ws;
-layout(location = 1) in vec3 in_normal;
-layout(location = 2) in vec3 in_tangent;
+layout(location = 1) in vec3 in_normal_ws;
+layout(location = 2) in vec3 in_tangent_ws;
 layout(location = 3) in vec2 in_texcoord;
 
 layout(location = 0) out vec4 out_position_vs;
 layout(location = 1) out vec3 out_normal_vs;
 layout(location = 2) out vec2 out_texcoord;
+layout(location = 3) out mat3 out_TBN;
 
 void main() {
   vec4 vert_pos_vs = perframe_data.view_mat * vec4(in_position_ws, 1.0);
@@ -33,7 +34,18 @@ void main() {
   mat4 normal_mat =
       perframe_data.view_mat * mat4(transpose(inverse(mat3(1.0))));
 
-  out_normal_vs = mat3(normal_mat) * in_normal;
+  // our mesh is static. all input is normalized.
+  // construct TBN in view space.
+  // TODO:
+  mat3 view_rotate = mat3(perframe_data.view_mat);
+  vec3 T = normalize(view_rotate * in_tangent_ws);
+  vec3 N = normalize(view_rotate * in_normal_ws);
+  vec3 B = cross(N, T);
+
+  // covert normal from ts to vs.
+  out_TBN = transpose(mat3(T, B, N));
+
+  out_normal_vs = mat3(perframe_data.view_mat) * in_normal_ws;
 
   out_texcoord = in_texcoord;
 }

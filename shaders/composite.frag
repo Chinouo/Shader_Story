@@ -30,6 +30,7 @@ layout(set = 0, binding = 0) uniform PerframeData {
 }
 perframe_data;
 
+// all in view space
 layout(set = 1, binding = 0) uniform sampler2D GPositionTex;
 layout(set = 1, binding = 1) uniform sampler2D GNormalTex;
 layout(set = 1, binding = 2) uniform sampler2D GAlbedoTex;
@@ -154,10 +155,20 @@ float PCSS(const vec2 uv, float z_receiver, const uint cascade_idx) {
   return SimplePCF(uv, z_receiver, cascade_idx);
 }
 
+vec3 Bling_Phong(const vec3 V, const vec3 N, const vec3 L, const vec3 albedo) {
+  vec3 H = normalize(V + L);
+  float ambient = 0.2;
+
+  float diffuse = max(dot(N, V), 0.0);
+  float specular = pow(max(dot(H, N), 0.0), 32.0);
+
+  return (ambient + diffuse + specular) * albedo;
+}
+
 void main() {
   vec3 frag_position_vs = texture(GPositionTex, in_uv).xyz;
   vec4 frag_albedo = texture(GAlbedoTex, in_uv).rgba;
-  vec3 frag_normal = texture(GNormalTex, in_uv).xyz;  // already normalized
+  vec3 frag_normal_vs = texture(GNormalTex, in_uv).xyz;  // already normalized
 
   // view space
   // vec4 frag_pos_vs =
@@ -207,9 +218,18 @@ void main() {
 
   float occlusion = texture(SSAOTex, in_uv).r;
   out_color = vec4(frag_albedo.rgb * (1.0 - occlusion), 1.0);
-  out_color = vec4(frag_albedo.rgba);
 
   out_color = vec4(vec3(roughness), 1.0);
 
+  vec3 sun_pos_vs =
+      (perframe_data.view_mat * vec4(perframe_data.sun_pos_ws, 1.0)).xyz;
+  vec3 L = normalize(sun_pos_vs - frag_position_vs);
+  vec3 V = normalize(-frag_position_vs);
+  vec3 brdf = Bling_Phong(V, frag_normal_vs, L, frag_albedo.xyz);
+
+  out_color = vec4(frag_normal_vs, 1.0);
+
+  // out_color = vec4(frag_albedo.rgba);
+  out_color = vec4(brdf, 1.0);
   // out_color = vec4(vec3(occlusion), 1.0);
 }

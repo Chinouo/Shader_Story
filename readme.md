@@ -23,6 +23,9 @@ PCSS:
 Defered:
 ![Defered](snapshoot/defered//defered.png)
 
+NormalMap:
+![NormalMap](snapshoot/normalmap/normalmap.png)
+
 CSM:
 ![Cascade Shdowmap](snapshoot/cascade_shadowmap/cascade.png)
 ![Cascade Shdowmap](snapshoot/cascade_shadowmap/csm.png)
