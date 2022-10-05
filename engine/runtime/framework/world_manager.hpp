@@ -25,6 +25,8 @@ class WorldManager final {
 
   Sun sun;
 
+  PointLightComponent point_light_1;
+
   DISALLOW_COPY_ASSIGN_AND_MOVE(WorldManager);
 };
 

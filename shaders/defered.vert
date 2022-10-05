@@ -38,12 +38,12 @@ void main() {
   // construct TBN in view space.
   // TODO:
   mat3 view_rotate = mat3(perframe_data.view_mat);
-  vec3 T = normalize(view_rotate * in_tangent_ws);
-  vec3 N = normalize(view_rotate * in_normal_ws);
+  vec3 T = in_tangent_ws;
+  vec3 N = in_normal_ws;
   vec3 B = cross(N, T);
 
-  // covert normal from ts to vs.
-  out_TBN = transpose(mat3(T, B, N));
+  // ts -> ws -> vs.
+  out_TBN = view_rotate * mat3(T, B, N);
 
   out_normal_vs = mat3(perframe_data.view_mat) * in_normal_ws;
 

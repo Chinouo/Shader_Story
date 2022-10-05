@@ -112,7 +112,7 @@ void CameraComponent::SetUpRenderRenderCameraUI() {
   g_runtime_global_context.m_ui_manager->AddUIComponent(this);
 }
 
-void CameraComponent::OnDrawUI() const {
+void CameraComponent::OnDrawUI() {
   ImGui::Begin("RenderCamera", &need_draw_ui, ImGuiWindowFlags_MenuBar);
   ImGui::Text("Position: x: %.3f y: %.3f z: %.3f", m_position.x, m_position.y,
               m_position.z);
@@ -121,6 +121,11 @@ void CameraComponent::OnDrawUI() const {
   ImGui::Text("Right: x: %.3f y: %.3f z: %.3f", m_right.x, m_right.y,
               m_right.z);
   ImGui::Text("Up: x: %.3f y: %.3f z: %.3f", m_up.x, m_up.y, m_up.z);
+  ImGui::InputFloat3("c:", last_input);
+  if (ImGui::Button("Set CameraPosition")) {
+    auto tsf = vec3(last_input[0], last_input[1], last_input[2]);
+    SetPosition(tsf);
+  }
 
   ImGui::End();
 };

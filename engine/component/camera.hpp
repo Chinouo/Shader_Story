@@ -65,18 +65,20 @@ class CameraComponent final : public RenderCamera, public ReflectUIComponent {
   ~CameraComponent() = default;
 
   void Tick(double delta_time);
-  void OnDrawUI() const override;
+  void OnDrawUI() override;
   void SetUpRenderRenderCameraUI();
 
  private:
-  float m_speed{0.03f};
+  float m_speed{0.3f};
   float m_cursor_sensitive{0.3};
 
   bool m_is_first_cursor_pos{true};
   float m_last_cursor_x{0.f};
   float m_last_cursor_y{0.f};
 
+  // ui
   mutable bool need_draw_ui{true};
+  float last_input[3] = {0.0, 0.0, 0.0};
 
   // TODO: implement.
   std::mutex m_proj_view_mat_mtx;

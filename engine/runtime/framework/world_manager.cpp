@@ -2,11 +2,14 @@
 
 #include <iostream>
 
+#include "engine/runtime/framework/ui_manager.hpp"
+
 namespace ShaderStory {
 
 void WorldManager::Initialize() {
   sun.SetUpUIComponent();
   m_camera.SetUpRenderRenderCameraUI();
+  g_runtime_global_context.m_ui_manager->AddUIComponent(&point_light_1);
 }
 
 void WorldManager::Dispose() {}

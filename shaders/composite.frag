@@ -159,7 +159,7 @@ vec3 Bling_Phong(const vec3 V, const vec3 N, const vec3 L, const vec3 albedo) {
   vec3 H = normalize(V + L);
   float ambient = 0.2;
 
-  float diffuse = max(dot(N, V), 0.0);
+  float diffuse = max(dot(N, L), 0.0);
   float specular = pow(max(dot(H, N), 0.0), 32.0);
 
   return (ambient + diffuse + specular) * albedo;
@@ -223,6 +223,7 @@ void main() {
 
   vec3 sun_pos_vs =
       (perframe_data.view_mat * vec4(perframe_data.sun_pos_ws, 1.0)).xyz;
+
   vec3 L = normalize(sun_pos_vs - frag_position_vs);
   vec3 V = normalize(-frag_position_vs);
   vec3 brdf = Bling_Phong(V, frag_normal_vs, L, frag_albedo.xyz);

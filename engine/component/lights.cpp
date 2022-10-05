@@ -15,7 +15,7 @@ void Sun::SetUpUIComponent() {
 
 void Sun::Tick(double delta_time) {
   // if direction is parallel with world up, cross will get Nan.
-  m_position = vec3(30.f, 60.1f, 90.f);
+  // m_position = vec3(30.f, 60.1f, 90.f);
   m_direction = normalize(-m_position);
 }
 
@@ -196,11 +196,11 @@ std::array<CascadeData, 3> Sun::GetCascadeViewProjMatrices(
     float d = cascade_split_lambda * (log - uniform) + uniform;
     cascade_splits[i] = (d - near_clip) / clip_range;
   }
-        // hack
-        cascade_splits[0] = 0.08f;
-        cascade_splits[1] = 0.3f;
-        cascade_splits[2] = 1.0f;
-        
+  // hack
+  cascade_splits[0] = 0.08f;
+  cascade_splits[1] = 0.3f;
+  cascade_splits[2] = 1.0f;
+
   float last_split_distance = 0.f;
 
   for (size_t i = 0; i < cascade_data.size(); ++i) {
@@ -335,11 +335,17 @@ mat4 Sun::MakeCascadeViewProjMatrix(const mat4& view_proj_mat) const {
   return lightOrthoMatrix * lightViewMatrix;
 }
 
-void Sun::OnDrawUI() const {
+void Sun::OnDrawUI() {
   ImGui::Begin("Sun", &display_ui, ImGuiWindowFlags_MenuBar);
 
   ImGui::Text("Sun Position: x: %.3f y: %.3f z: %.3f", m_position.x,
               m_position.y, m_position.z);
+
+  ImGui::InputFloat3("SunPosition Input:", last_pos_input);
+  if (ImGui::Button("Set SunPosition")) {
+    auto tsf = vec3(last_pos_input[0], last_pos_input[1], last_pos_input[2]);
+    SetPosition(tsf);
+  }
 
   ImGui::End();
 }

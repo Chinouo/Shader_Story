@@ -20,7 +20,7 @@ void UIManager::RecordUIComponentDrawCommand() {
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
-  for (const auto* component : m_registered_components) {
+  for (auto* component : m_registered_components) {
     component->OnDrawUI();
   }
   // Insert your ui code here.

@@ -10,7 +10,7 @@ namespace ShaderStory {
 
 class ReflectUIComponent {
  public:
-  virtual void OnDrawUI() const = 0;
+  virtual void OnDrawUI() = 0;
   virtual ~ReflectUIComponent() = default;
 };
 
