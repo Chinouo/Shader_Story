@@ -22,6 +22,12 @@ class DeferedPass : public RenderPassBase {
   void CreateFrameBuffers();
 
  private:
+  // draw light entity.
+  void CreateLightEntityPipeline();
+  void CreateLightEntitySetLayout();
+  void CreateLightDescriptorSet();
+
+ private:
   VkRenderPass m_offscreen_pass{VK_NULL_HANDLE};
   std::array<VkFramebuffer, MAX_FRAMES_IN_FLIGHT> m_offscreen_framebuffers;
   VkDescriptorSet m_offscreen_set{VK_NULL_HANDLE};

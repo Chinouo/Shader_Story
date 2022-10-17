@@ -5,9 +5,9 @@ layout(set = 0, binding = 2) uniform sampler2D terrain_normalmap;
 layout(set = 0, binding = 3) uniform sampler2D terrain_pbr_material;
 
 layout(location = 0) in vec4 in_position_vs;
-layout(location = 1) in vec3 in_normal_vs;
+layout(location = 1) in vec3 in_normal_vs;  // TODO: remove
 layout(location = 2) in vec2 in_texcoord;
-layout(location = 3) in mat3 in_TBN;  // covert normal to view space.
+layout(location = 3) in mat3 in_TBN;  // covert normal_ts to view space.
 
 layout(location = 0) out vec4 out_position_vs;
 layout(location = 1) out vec4 out_normal_vs;

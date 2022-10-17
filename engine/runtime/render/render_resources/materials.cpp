@@ -11,10 +11,10 @@
 namespace ShaderStory {
 
 void MaterialManager::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
-  LoadAlbedoTexture(rhi, "assets/o-RGBA.png");
-  LoadNormalMapTexture(rhi, "assets/oN-RGBA.png");
-  LoadMaterialTexture(rhi, "assets/oR-RGBA.png", "assets/oM-RGBA.png",
-                      "assets/oE-RGBA.png");
+  LoadAlbedoTexture(rhi, "assets/TEST-RGBA.png");
+  LoadNormalMapTexture(rhi, "assets/n-RGBA.png");
+  LoadMaterialTexture(rhi, "assets/r-RGBA.png", "assets/m-RGBA.png",
+                      "assets/e-RGBA.png");
 }
 
 void MaterialManager::Destory(std::shared_ptr<RHI::VKRHI> rhi) {

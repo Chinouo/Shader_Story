@@ -9,6 +9,7 @@
 #include "engine/runtime/io/assets_manager.hpp"
 #include "engine/runtime/render/render_resources/defered_resource.hpp"
 #include "engine/runtime/render/render_resources/materials.hpp"
+#include "engine/runtime/render/render_resources/sbo.hpp"
 #include "engine/runtime/render/render_resources/ssao_resource.hpp"
 #include "engine/runtime/render/render_resources/ubo.hpp"
 #include "engine/runtime/render/render_swap_data.hpp"
@@ -19,25 +20,25 @@
 namespace ShaderStory {
 
 /// dynamic data, using readonly storage buffer, similar to uniform.
-struct PerframeStorageBufferObject {
-  PerframeStorageBufferData data;
-  void* mapped_mem;
-  const u_int32_t mem_align{256};
+// struct PerframeStorageBufferObject {
+//   PerframeStorageBufferData data;
+//   void* mapped_mem;
+//   const u_int32_t mem_align{256};
 
-  VkBuffer buf{VK_NULL_HANDLE};
-  VmaAllocation alloc{VK_NULL_HANDLE};
-  VmaAllocationInfo alloc_info;
+//   VkBuffer buf{VK_NULL_HANDLE};
+//   VmaAllocation alloc{VK_NULL_HANDLE};
+//   VmaAllocationInfo alloc_info;
 
-  constexpr size_t GetOffset(size_t sz) {
-    return (mem_align + sz - 1) & ~(sz - 1);
-  }
+//   constexpr size_t GetOffset(size_t sz) {
+//     return (mem_align + sz - 1) & ~(sz - 1);
+//   }
 
-  void SetData(const PerframeStorageBufferData& data, int index) {
-    size_t sz = sizeof(PerframeStorageBufferData);
-    void* dst_with_offset = (char*)(mapped_mem) + index * GetOffset(sz);
-    memcpy(dst_with_offset, &data, sz);
-  };
-};
+//   void SetData(const PerframeStorageBufferData& data, int index) {
+//     size_t sz = sizeof(PerframeStorageBufferData);
+//     void* dst_with_offset = (char*)(mapped_mem) + index * GetOffset(sz);
+//     memcpy(dst_with_offset, &data, sz);
+//   };
+// };
 
 /// basic simple mesh data.
 struct RenderStaticMeshObject {
@@ -149,9 +150,9 @@ class RenderResource final {
     return m_terrain_material_manager;
   }
 
-  // const RenderTerrainTextureObject& GetTerrainTextureObject() const {
-  //   return m_terrain_texture_object;
-  // }
+  const StorageBufferObjectManager& GetStorageBufferManager() const {
+    return m_perframe_sbo_manager;
+  }
 
   const SunResourceObject& GetSunResourceObject() const {
     return sun_resource_object;
@@ -202,7 +203,8 @@ class RenderResource final {
 
   DeferedResourceManager m_defered_resource_manager;
 
-  PerframeStorageBufferObject perframe_storage_obj;
+  StorageBufferObjectManager m_perframe_sbo_manager;
+
   /// store all loaded mesh, data located in GPU.
   std::unordered_map<std::string, RenderStaticMeshObject> m_mesh_objects;
 

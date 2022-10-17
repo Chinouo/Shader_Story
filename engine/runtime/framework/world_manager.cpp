@@ -7,9 +7,9 @@
 namespace ShaderStory {
 
 void WorldManager::Initialize() {
+  m_illumination_manager = std::make_unique<Illumination>();
   sun.SetUpUIComponent();
   m_camera.SetUpRenderRenderCameraUI();
-  g_runtime_global_context.m_ui_manager->AddUIComponent(&point_light_1);
 }
 
 void WorldManager::Dispose() {}
@@ -24,18 +24,24 @@ void WorldManager::Tick(double delta_time) {
 void WorldManager::LoadSwapData(SwapData& swap_data) const {
   auto cascade_data = sun.GetCascadeViewProjMatrices(m_camera);
   for (int i = 0; i < cascade_data.size(); ++i) {
-    swap_data.perframe_data.cascade_proj_view_mats[i] =
+    swap_data.perframe_ubo_data.cascade_proj_view_mats[i] =
         cascade_data[i].cascade_proj_view_matrix;
-    swap_data.perframe_data.depth_splits[i] = cascade_data[i].split_depth;
+    swap_data.perframe_ubo_data.depth_splits[i] = cascade_data[i].split_depth;
   }
 
-  swap_data.perframe_data.proj_mat = m_camera.GetProjMatrix();
-  swap_data.perframe_data.view_mat = m_camera.GetViewMatrix();
+  swap_data.perframe_ubo_data.proj_mat = m_camera.GetProjMatrix();
+  swap_data.perframe_ubo_data.view_mat = m_camera.GetViewMatrix();
 
-  swap_data.perframe_data.sun_ray_dir = sun.GetDirection();
-  swap_data.perframe_data.sun_pos_ws = sun.GetPosition();
-  swap_data.perframe_data.camera_pos_ws = m_camera.GetPosition();
+  swap_data.perframe_ubo_data.sun_ray_dir = sun.GetDirection();
+  swap_data.perframe_ubo_data.sun_pos_ws = sun.GetPosition();
+  swap_data.perframe_ubo_data.camera_pos_ws = m_camera.GetPosition();
 
-  swap_data.perframe_data.proj_view_mat = m_camera.GetViewProjectionMatrix();
+  swap_data.perframe_ubo_data.proj_view_mat =
+      m_camera.GetViewProjectionMatrix();
+
+  // load light data to sbo.
+  m_illumination_manager->LoadSwapData(swap_data.perframe_sbo_data);
+
+  ;
 }
 }  // namespace ShaderStory

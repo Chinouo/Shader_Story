@@ -5,7 +5,6 @@
 #include "engine/common/macros.h"
 #include "engine/runtime/render/pass/composite_pass.hpp"
 #include "engine/runtime/render/pass/defered_pass.hpp"
-#include "engine/runtime/render/pass/main_camera_pass.hpp"
 #include "engine/runtime/render/pass/ssao_pass.hpp"
 #include "engine/runtime/render/pass/sun_pass.hpp"
 #include "engine/runtime/render/pass/ui_pass.hpp"

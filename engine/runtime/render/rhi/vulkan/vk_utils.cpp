@@ -2,6 +2,7 @@
 
 #include <exception>
 #include <fstream>
+#include <iostream>
 
 #include "engine/common/macros.h"
 namespace ShaderStory {
@@ -22,7 +23,7 @@ std::vector<u_int32_t> VkUtil::GetSpirvBinary(const std::string& file,
   ASSERT(!buf.empty());
 
   auto result = compiler.CompileGlslToSpv(buf.data(), buf.size(), shader_type,
-                                          file.c_str());
+                                          file.c_str(), compile_op);
 
   if (!result.GetErrorMessage().empty()) {
     throw std::runtime_error(result.GetErrorMessage());
@@ -34,6 +35,48 @@ std::vector<u_int32_t> VkUtil::GetSpirvBinary(const std::string& file,
 VkShaderModule VkUtil::RuntimeCreateShaderModule(
     VkDevice device, const std::string& file, shaderc_shader_kind shader_type) {
   std::vector<uint32_t> spirv(GetSpirvBinary(file, shader_type));
+
+  VkShaderModuleCreateInfo info{};
+  info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+  info.codeSize = spirv.size() * sizeof(uint32_t);
+  info.pCode = spirv.data();
+
+  VkShaderModule ret;
+
+  VK_CHECK(vkCreateShaderModule(device, &info, nullptr, &ret),
+           "Failed to create shadermodule.");
+
+  return ret;
+}
+
+VkShaderModule VkUtil::RuntimeCreateShaderModule(
+    const VkDevice device, const std::string& src_file,
+    const std::string& path_prefix,
+    const std::vector<std::string>& include_files,
+    shaderc_shader_kind shader_type) {
+  using namespace shaderc;
+  shaderc::CompileOptions compile_op;
+  compile_op.SetIncluder(
+      std::make_unique<GLSLInclude>(path_prefix, include_files));
+
+  std::fstream in(src_file, std::ios::in);
+  ASSERT(in.is_open() && "Failed to open file");
+  in.seekg(0, std::ios::end);  // 从末尾开始计算偏移量
+  std::streampos size = in.tellg();
+  in.seekg(0, std::ios::beg);  // 从起始位置开始计算偏移量
+  std::vector<char> buf(size);
+  in.read(buf.data(), size);
+  in.close();
+  ASSERT(!buf.empty());
+
+  auto result = compiler.CompileGlslToSpv(buf.data(), buf.size(), shader_type,
+                                          src_file.c_str(), compile_op);
+
+  if (!result.GetErrorMessage().empty()) {
+    throw std::runtime_error(result.GetErrorMessage());
+  }
+
+  std::vector<u_int32_t> spirv = {result.cbegin(), result.cend()};
 
   VkShaderModuleCreateInfo info{};
   info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,

@@ -11,27 +11,21 @@ void RenderResource::Initialize(std::shared_ptr<RHI::VKRHI> rhi) {
   m_rhi = rhi;
 
   m_perframe_ubo_manager.Initialize(rhi);
+  m_perframe_sbo_manager.Initialize(rhi);
+
   m_ssao_resource_manager.Initialize(rhi);
   m_defered_resource_manager.Initialize(rhi);
   m_terrain_material_manager.Initialize(rhi);
-  // CreateDeferedObject();
+
   CreateSamplers();
   SetUpSunResources();
-  //   Texture2D big_texture =
-  //   AssetsManager::LoadTextureFile("assets/sb-RGBA.png");
-
-  //   UploadTerrainTexture(big_texture);
-  //   big_texture.Dispose();
 
   std::vector<StaticMesh> mesh_1 =
-      AssetsManager::LoadObjToStaticMeshes("assets/o.obj");
+      AssetsManager::LoadObjToStaticMeshes("assets/TEST.obj");
 
   for (const auto& mesh : mesh_1) {
     UploadStaticMesh(mesh);
   }
-
-  // CreatePerFrameData();
-  // CreatePerFrameStorageBuffer();
 }
 
 void RenderResource::Dispose() {
@@ -96,9 +90,11 @@ void RenderResource::UploadStaticMesh(const StaticMesh& mesh) {
 
   StagingUpload(static_mesh_obj.mesh_indices_buf, indices_buf_create_info.size,
                 mesh.indices.data());
+
+  std::clog << mesh.name << " loaded.\n" << std::endl;
   // TODO: using GUID to alloc.
-  ASSERT(!m_mesh_objects.count(mesh.name) &&
-         "Current not support duplicated name mesh.");
+  //   ASSERT(!m_mesh_objects.count(mesh.name) &&
+  //          "Current not support duplicated name mesh.");
   m_mesh_objects[mesh.name] = static_mesh_obj;
 
   std::cout << "vert size: " << vert_buf_create_info.size << '\n'
@@ -136,99 +132,13 @@ void RenderResource::StagingUpload(VkBuffer dst, VkDeviceSize size,
 
 void RenderResource::UpdatePerFrameData(const SwapData& swap_data) {
   int cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-  const auto& perframe_data = swap_data.perframe_data;
-  m_perframe_ubo_manager.UpdateCurrentFrameData(swap_data.perframe_data,
+  const auto& perframe_data = swap_data.perframe_ubo_data;
+  m_perframe_ubo_manager.UpdateCurrentFrameData(swap_data.perframe_ubo_data,
+                                                cur_frame_idx);
+
+  m_perframe_sbo_manager.UpdateCurrentFrameData(swap_data.perframe_sbo_data,
                                                 cur_frame_idx);
 }
-
-// void RenderResource::StagingUploadImage(VkImage dst, u_int32_t width,
-//                                         u_int32_t height, VkDeviceSize size,
-//                                         uint32_t layer_count,
-//                                         uint32_t miplevels,
-//                                         VkImageAspectFlags aspect_mask_bits,
-//                                         const void* data) {
-//   // copy image data to buffer.
-//   VkBuffer stage_buf{VK_NULL_HANDLE};
-//   VkBufferCreateInfo stage_buffer_create_info{
-//       VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-//   stage_buffer_create_info.size = size;
-//   stage_buffer_create_info.usage =
-//       VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-//   VmaAllocationCreateInfo stage_create_info{};
-//   stage_create_info.usage = VMA_MEMORY_USAGE_AUTO;
-//   stage_create_info.flags =
-//       VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-//       VMA_ALLOCATION_CREATE_MAPPED_BIT;
-//   VmaAllocation stage_alloc;
-//   VmaAllocationInfo stage_alloc_info;
-//   vmaCreateBuffer(m_rhi->m_vma_allocator, &stage_buffer_create_info,
-//                   &stage_create_info, &stage_buf, &stage_alloc,
-//                   &stage_alloc_info);
-
-//   memcpy(stage_alloc_info.pMappedData, data, stage_buffer_create_info.size);
-
-//   // transition image layout for cope.
-//   // transit for copy
-//   m_rhi->TransitImageLayout(dst, VK_IMAGE_LAYOUT_UNDEFINED,
-//                             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-//                             layer_count, miplevels, aspect_mask_bits);
-
-//   VkCommandBuffer command_buffer = m_rhi->BeginSingleTimeCommands();
-
-//   VkBufferImageCopy region{};
-//   region.bufferOffset = 0;
-//   region.bufferRowLength = 0;
-//   region.bufferImageHeight = 0;
-//   region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-//   region.imageSubresource.mipLevel = miplevels;
-//   region.imageSubresource.baseArrayLayer = 0;
-//   region.imageSubresource.layerCount = layer_count;
-//   region.imageOffset = {0, 0, 0};
-//   region.imageExtent = {width, height, 1};
-//   vkCmdCopyBufferToImage(command_buffer, stage_buf, dst,
-//                          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-//   m_rhi->EndSingleTimeCommands(command_buffer);
-//   // transit for sampling.
-//   m_rhi->TransitImageLayout(dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-//                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-//                             layer_count, miplevels, aspect_mask_bits);
-
-//   // destory stage buffer.
-//   vmaDestroyBuffer(m_rhi->m_vma_allocator, stage_buf, stage_alloc);
-// }
-
-// void RenderResource::UploadTerrainTexture(Texture2D& info) {
-//   RenderTerrainTextureObject& object = m_terrain_texture_object;
-//   VmaAllocationCreateInfo alloc_info{};
-//   alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-//   alloc_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-//   alloc_info.priority = 1.0f;
-
-//   VkImageCreateInfo image_create_info = info.GetDefaultImageCreateInfo();
-//   image_create_info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-//   vmaCreateImage(m_rhi->m_vma_allocator, &image_create_info, &alloc_info,
-//                  &object.texture_image, &object.texture_alloc, nullptr);
-
-//   VkImageViewCreateInfo view_create_info{
-//       VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
-//   view_create_info.image = object.texture_image;
-//   view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-//   view_create_info.format = VK_FORMAT_R8G8B8A8_SRGB;
-//   view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-//   view_create_info.subresourceRange.baseMipLevel = 0;
-//   view_create_info.subresourceRange.levelCount = 1;
-//   view_create_info.subresourceRange.baseArrayLayer = 0;
-//   view_create_info.subresourceRange.layerCount = 1;
-
-//   vkCreateImageView(m_rhi->m_device, &view_create_info, nullptr,
-//                     &object.texture_image_view);
-
-//   StagingUploadImage(object.texture_image, info.width, info.height,
-//   info.size,
-//                      1, 0, VK_IMAGE_ASPECT_COLOR_BIT, info.data);
-// }
 
 void RenderResource::CreateSamplers() {
   // texture sampler
@@ -365,38 +275,6 @@ void RenderResource::SetUpSunResources() {
           &sun_resource_object.sun_depth[i].cascade_shadowmap_views[j]);
     }
   }
-}
-
-void RenderResource::CreatePerFrameStorageBuffer() {
-  VkBufferCreateInfo buf_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  buf_info.size = perframe_storage_obj.mem_align * MAX_FRAMES_IN_FLIGHT;
-  buf_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-  VmaAllocationCreateInfo alloc_info{};
-  alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-  alloc_info.priority = 1.0f;
-  alloc_info.flags =
-      VMA_ALLOCATION_CREATE_MAPPED_BIT |
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-      VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT;
-
-  vmaCreateBufferWithAlignment(
-      m_rhi->m_vma_allocator, &buf_info, &alloc_info,
-      perframe_storage_obj.mem_align, &perframe_storage_obj.buf,
-      &perframe_storage_obj.alloc, &perframe_storage_obj.alloc_info);
-
-  VkMemoryPropertyFlags memPropFlags;
-  vmaGetAllocationMemoryProperties(m_rhi->m_vma_allocator,
-                                   perframe_storage_obj.alloc, &memPropFlags);
-
-  ASSERT(memPropFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
-         "Allocate Perframe Uniform Buffer Failed.");
-
-  vmaMapMemory(m_rhi->m_vma_allocator, perframe_storage_obj.alloc,
-               &perframe_storage_obj.mapped_mem);
-
-  ASSERT(perframe_storage_obj.alloc_info.pMappedData ==
-         perframe_storage_obj.mapped_mem);
 }
 
 }  // namespace ShaderStory

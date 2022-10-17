@@ -464,4 +464,9 @@ void DeferedPass::CreateFrameBuffers() {
              "Failed to create framebuffer!");
   }
 }
+
+void DeferedPass::CreateLightEntityPipeline() {}
+void DeferedPass::CreateLightEntitySetLayout() {}
+void DeferedPass::CreateLightDescriptorSet() {}
+
 }  // namespace ShaderStory

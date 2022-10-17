@@ -3,6 +3,7 @@
 
 #include "engine/component/camera.hpp"
 #include "engine/component/lights.hpp"
+#include "engine/runtime/framework/illumination.hpp"
 #include "engine/runtime/render/render_swap_data.hpp"
 
 namespace ShaderStory {
@@ -25,7 +26,7 @@ class WorldManager final {
 
   Sun sun;
 
-  PointLightComponent point_light_1;
+  std::unique_ptr<Illumination> m_illumination_manager;
 
   DISALLOW_COPY_ASSIGN_AND_MOVE(WorldManager);
 };

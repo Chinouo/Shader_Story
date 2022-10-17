@@ -33,9 +33,13 @@ void CompositePass::RunPass() {
                     m_composite_pipeline);
 
   u_int32_t cur_frame_idx = m_rhi->GetCurrentFrameIndex();
-  size_t offset =
-      m_resources->GetPerframeUBOManager().GetPerframeUBODynamicOffset();
-  u_int32_t dy_offsets = cur_frame_idx * offset;
+
+  std::array<u_int32_t, 2> dy_offsets{
+      cur_frame_idx *
+          m_resources->GetPerframeUBOManager().GetPerframeUBODynamicOffset(),
+      cur_frame_idx *
+          m_resources->GetStorageBufferManager().GetPerframeSBODynamicOffset(),
+  };
 
   std::array<VkDescriptorSet, 4> bound_sets;
   bound_sets[0] = m_composite_dybuffer_set;
@@ -45,7 +49,8 @@ void CompositePass::RunPass() {
 
   vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           m_composite_pipeline_layout, 0, bound_sets.size(),
-                          bound_sets.data(), 1, &dy_offsets);
+                          bound_sets.data(), dy_offsets.size(),
+                          dy_offsets.data());
 
   vkCmdDraw(command_buffer, 6, 1, 0, 0);
 }
@@ -114,12 +119,18 @@ void CompositePass::CreateDesciptorSetLayout() {
     VkDescriptorSetLayoutCreateInfo info{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
 
-    std::array<VkDescriptorSetLayoutBinding, 1> bindings;
-    // perframe data bindings.
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings;
+    // perframe ubo data bindings.
     bindings[0].binding = 0;
     bindings[0].descriptorCount = 1;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
     bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    // perframe sbo data bindings.
+    bindings[1].binding = 1;
+    bindings[1].descriptorCount = 1;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC;
+    bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     info.bindingCount = bindings.size();
     info.pBindings = bindings.data();
@@ -222,8 +233,15 @@ void CompositePass::CreateVkRenderPipeline() {
   // set up shader
   VkShaderModule vs = VkUtil::RuntimeCreateShaderModule(
       device, "./shaders/composite.vert", shaderc_vertex_shader);
+
   VkShaderModule fs = VkUtil::RuntimeCreateShaderModule(
-      device, "./shaders/composite.frag", shaderc_fragment_shader);
+      device, "./shaders/composite.frag", "./shaders/",
+      {
+          "include/common.h",
+          "include/common_data.glsl",
+          "include/surface_shading.glsl",
+      },
+      shaderc_fragment_shader);
 
   VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
   vertShaderStageInfo.sType =
@@ -366,16 +384,24 @@ void CompositePass::CreateDesciptorSet() {
                                       &m_composite_dybuffer_set),
              "Failed to create desp set.");
 
-    // perframe buffer set.
+    std::array<VkWriteDescriptorSet, 2> dyset_writers;
+    // perframe ubo buffer set.
     VkDescriptorBufferInfo perframe_data_buf_info =
         m_resources->GetPerframeUBOManager().GetDespBufInfo();
-
-    std::array<VkWriteDescriptorSet, 1> dyset_writers;
     // perframe data writer
     dyset_writers[0] = m_resources->GetPerframeUBOManager().GetDespWrite();
     dyset_writers[0].dstSet = m_composite_dybuffer_set;
     dyset_writers[0].dstBinding = 0;
     dyset_writers[0].pBufferInfo = &perframe_data_buf_info;
+
+    // perframe sbo
+    VkDescriptorBufferInfo perframe_sbo_data_info =
+        m_resources->GetStorageBufferManager().GetDespBufInfo();
+
+    dyset_writers[1] = m_resources->GetStorageBufferManager().GetDespWrite();
+    dyset_writers[1].dstSet = m_composite_dybuffer_set;
+    dyset_writers[1].dstBinding = 1;
+    dyset_writers[1].pBufferInfo = &perframe_sbo_data_info;
 
     vkUpdateDescriptorSets(m_rhi->m_device, dyset_writers.size(),
                            dyset_writers.data(), 0, nullptr);

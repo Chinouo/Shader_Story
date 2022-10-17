@@ -3,13 +3,17 @@
 
 #include <array>
 
+#include "engine/component/lights.hpp"
 #include "engine/core/math.hpp"
 
 #define CASCADE_COUNT 3
 
+#define MAX_POINT_LIGHT_SIZE 5
+#define MAX_DIRECTION_LIGHT_SIZE 5
+
 namespace ShaderStory {
 
-typedef struct {
+struct PerframeDataUBO {
   // camera
   mat4 proj_view_mat;
   mat4 proj_mat;
@@ -23,26 +27,32 @@ typedef struct {
   float padding_2;
   vec3 sun_pos_ws;
   float padding_3;
-} PerframeDataUBO;
+};
 
-// /// @brief  Double check your maxUniformBufferRange
-// typedef struct {
-//   mat4 proj_view_matrix;
-//   mat4 camera_view_matrix;
-//   mat4 cascade_proj_view_matrices[CASCADE_COUNT];
-//   alignas(16) float depth_splits[CASCADE_COUNT];
-//   alignas(16) vec3 camera_position_ws;
-//   alignas(16) vec3 sun_ray_direction;
-//   alignas(16) vec3 sun_position_ws;
+// struct PointLightObject {
+//   vec3 position;
+//   float radius;
+//   vec3 color;
+//   float intensity;
+// };
 
-// } PerframeData;
+struct DirectionObject {
+  vec3 position;
+  float padding_1;
+  vec3 color;
+  float padding_2;
+};
 
-// for big chunk dynamic data.
-typedef struct {
-} PerframeStorageBufferData;
+struct PerframeDataSBO {
+  PointLightSwapData point_lights[MAX_POINT_LIGHT_SIZE];
+  DirectionObject direction_lights[MAX_DIRECTION_LIGHT_SIZE];
+  uint32_t current_point_light_count;
+  uint32_t current_direction_light_count;
+};
 
 struct SwapData {
-  PerframeDataUBO perframe_data;
+  PerframeDataUBO perframe_ubo_data;
+  PerframeDataSBO perframe_sbo_data;
 };
 
 /// @brief  Sharing data between Logic thread and Render thread.

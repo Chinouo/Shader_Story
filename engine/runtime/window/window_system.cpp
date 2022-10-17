@@ -24,8 +24,8 @@ WindowSystem::WindowSystem(int width, int height)
     : m_width(width), m_height(height) {}
 
 WindowSystem::~WindowSystem() {
-  ImGui::DestroyContext();
   ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
 }
 
 void WindowSystem::Initialize() {
@@ -36,8 +36,8 @@ void WindowSystem::Initialize() {
 
   m_wd = glfwCreateWindow(m_width, m_height, "ShaderStory", nullptr, nullptr);
   ASSERT(m_wd && "Falied to create GLFW Window.");
-    
-    glfwSetWindowUserPointer(m_wd, this);
+
+  glfwSetWindowUserPointer(m_wd, this);
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -60,7 +60,7 @@ GLFWwindow* WindowSystem::GetWindow() const { return m_wd; }
 
 void WindowSystem::InstallCallbacks() {
   glfwSetInputMode(m_wd, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetWindowUserPointer(m_wd, this);
+  glfwSetWindowUserPointer(m_wd, this);
   glfwSetCursorPosCallback(m_wd, WindowSystem::cursorPosCallback);
   glfwSetKeyCallback(m_wd, WindowSystem::keyCallback);
 }
@@ -72,7 +72,7 @@ void WindowSystem::UninstallCallbacks() {
 }
 
 void WindowSystem::InstallImGuiCallbacks() {
-    glfwSetInputMode(m_wd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+  glfwSetInputMode(m_wd, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
   ImGui_ImplGlfw_InstallCallbacks(m_wd);
   ImGuiIO& io = ImGui::GetIO();
   io.ConfigFlags ^= ImGuiConfigFlags_NoMouse;

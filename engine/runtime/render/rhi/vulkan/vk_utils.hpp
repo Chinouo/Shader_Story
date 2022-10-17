@@ -1,6 +1,8 @@
 #ifndef VK_UTILS_HPP
 #define VK_UTILS_HPP
 
+#include <fstream>
+#include <unordered_map>
 #include <vector>
 
 #include "engine/runtime/render/rhi/vulkan/vk_rhi.hpp"
@@ -8,17 +10,91 @@
 #include "third_party/vma/vk_mem_alloc.h"
 
 namespace ShaderStory {
+/// may need move construct.
+class GLSLInclude : public shaderc::CompileOptions::IncluderInterface {
+ public:
+  GLSLInclude(const std::string path_prefix,
+              const std::vector<std::string>& include_files);
+  ~GLSLInclude();
+
+  shaderc_include_result* GetInclude(const char* requested_source,
+                                     shaderc_include_type type,
+                                     const char* requesting_source,
+                                     size_t include_depth) override;
+
+  // Handles shaderc_include_result_release_fn callbacks.
+  virtual void ReleaseInclude(shaderc_include_result* data) override;
+
+  const std::string m_path_prefix;
+
+  std::unordered_map<std::string, std::vector<char>> m_contents;
+};
+
+inline GLSLInclude::GLSLInclude(const std::string path_prefix,
+                                const std::vector<std::string>& include_files) {
+  // make sure non-duplicated.
+  for (const auto& include_file : include_files) {
+    const std::string file = path_prefix + include_file;
+    std::fstream in(file, std::ios::in);
+
+    ASSERT(in.is_open() && "Failed to open file");
+    in.seekg(0, std::ios::end);  // 从末尾开始计算偏移量
+    std::streampos size = in.tellg();
+    in.seekg(0, std::ios::beg);  // 从起始位置开始计算偏移量
+
+    std::vector<char> buf(size);
+
+    in.read(buf.data(), size);  // 读取数据
+    in.close();
+
+    // store full absolute path.
+    m_contents.try_emplace(include_file, buf);
+  }
+}
+
+inline GLSLInclude::~GLSLInclude() {}
+
+/// eg: a.h need b.h, requested_source is b.h, requesting_source is a.h.
+inline shaderc_include_result* GLSLInclude::GetInclude(
+    const char* requested_source, shaderc_include_type type,
+    const char* requesting_source, size_t include_depth) {
+  shaderc_include_result* result = new shaderc_include_result;
+
+  std::string include_source(requested_source);
+  include_source = m_path_prefix + include_source;
+  assert(m_contents.count(include_source));
+
+  const auto it = m_contents.find(include_source);
+
+  result->content = it->second.data();
+  result->content_length = it->second.size();
+
+  result->source_name = it->first.data();
+  result->source_name_length = it->first.size();
+  result->user_data = nullptr;
+
+  return result;
+}
+
+inline void GLSLInclude::ReleaseInclude(shaderc_include_result* data) {
+  delete data;
+}
 
 class VkUtil {
  public:
   static shaderc::Compiler compiler;
-  static shaderc::CompileOptions compile_op;
 
   static std::vector<u_int32_t> GetSpirvBinary(const std::string& file,
                                                shaderc_shader_kind shader_type);
 
   static VkShaderModule RuntimeCreateShaderModule(
       VkDevice device, const std::string& file,
+      shaderc_shader_kind shader_type);
+
+  static VkShaderModule RuntimeCreateShaderModule(
+      const VkDevice device, const std::string& src_file,
+      const std::string& path_prefix,
+      const std::vector<std::string>& include_files,
       shaderc_shader_kind shader_type);
 
   static uint32_t FindMemoryType(
